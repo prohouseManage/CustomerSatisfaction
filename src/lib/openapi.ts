@@ -20,6 +20,12 @@ const sessionQuery = {
   schema: { type: 'string' },
   description: 'Filtre par identifiant de session',
 };
+const reportDates = ['dateFrom', 'dateTo'].map((name) => ({
+  name,
+  in: 'query',
+  schema: { type: 'string', format: 'date' },
+  description: `${name === 'dateFrom' ? 'Début' : 'Fin'} inclusif de la période de formation. Inclut les sessions dont les dates croisent cette période ; ne filtre pas la date de soumission. dateFrom <= dateTo. Pour un jour précis, fournir la même valeur aux deux bornes.`,
+}));
 const pageQuery = {
   name: 'page',
   in: 'query',
@@ -571,7 +577,7 @@ export const openapi = {
         tags: ['Réponses'],
         summary: 'Lister les réponses',
         security: adminSecurity,
-        parameters: [sessionQuery, pageQuery],
+        parameters: [sessionQuery, ...reportDates, pageQuery],
         responses: {
           200: ok({
             type: 'object',
@@ -625,7 +631,7 @@ export const openapi = {
         tags: ['Rapports'],
         summary: 'Statistiques et résultats par question',
         security: adminSecurity,
-        parameters: [sessionQuery],
+        parameters: [sessionQuery, ...reportDates],
         responses: { 200: ok(ref('Statistics')), ...errors },
       },
     },
@@ -636,6 +642,7 @@ export const openapi = {
         security: adminSecurity,
         parameters: [
           sessionQuery,
+          ...reportDates,
           {
             name: 'format',
             in: 'query',
@@ -1098,6 +1105,11 @@ export const openapi = {
                 id: { type: 'string' },
                 label: { type: 'string' },
                 session: { type: 'string' },
+                sessionId: {
+                  type: 'string',
+                  description:
+                    'Référence unique de la session, pour distinguer les formations portant le même nom.',
+                },
                 type: { type: 'string' },
                 archived: {
                   type: 'boolean',

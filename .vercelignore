@@ -19,6 +19,6 @@ tests/
 *.csv
 *.pdf
 *.zip
-backups/
-exports/
-uploads/
+/backups/
+/exports/
+/uploads/

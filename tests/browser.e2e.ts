@@ -216,7 +216,13 @@ async function main() {
         ],
       },
     });
-    await page.getByRole('button', { name: 'Automatisations', exact: true }).click();
+    const automationButton = page.getByRole('button', { name: 'Automatisations', exact: true });
+    const settingsButton = page.getByRole('button', { name: 'Paramètres', exact: true });
+    assert.equal(
+      (await automationButton.boundingBox())?.x,
+      (await settingsButton.boundingBox())?.x,
+    );
+    await automationButton.click();
     await page.getByRole('heading', { name: 'Suivi des automatisations', exact: true }).waitFor();
     await page.getByText('Terminée avec erreurs', { exact: true }).waitFor();
     await page.getByText('Voir les étapes', { exact: true }).click();
@@ -821,6 +827,85 @@ async function main() {
       (outbox.payload as { answers: { comment?: string }[] }).answers[0].comment,
       'Très satisfait du contenu.',
     );
+    // This phase uses only the disposable E2E database, with no SMTP or Odoo submission.
+    await db.rateLimit.deleteMany({ where: { key: { startsWith: 'admin:' } } });
+    await page.goto(`${url}/admin?view=reports`);
+    await page.getByRole('heading', { name: 'Sessions du périmètre' }).waitFor();
+    await page.getByLabel('Période de formation', { exact: true }).selectOption('day');
+    const filteredStats = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/statistics?') &&
+        response.url().includes('dateFrom=2026-12-12'),
+    );
+    await page.getByLabel('Date de formation', { exact: true }).fill('2026-12-12');
+    assert.equal((await filteredStats).status(), 200);
+    await page.getByRole('heading', { name: 'Sessions du périmètre' }).waitFor();
+    const scope = page.locator('.report-session-list');
+    assert.equal(await scope.locator('tbody tr').count(), 1);
+    assert.ok((await scope.innerText()).includes(session.id));
+    const filteredResponses = await page.request.get(
+      `${url}/api/responses?dateFrom=2026-12-12&dateTo=2026-12-12`,
+    );
+    assert.equal(filteredResponses.status(), 200);
+    assert.deepEqual(
+      (await filteredResponses.json()).items.map((item: { sessionId: string }) => item.sessionId),
+      [session.id],
+    );
+    const filteredExcel = await page.request.get(
+      `${url}/api/exports?format=xlsx&dateFrom=2026-12-12&dateTo=2026-12-12`,
+    );
+    assert.equal(filteredExcel.status(), 200);
+    const reportWorkbook = XLSX.read(await filteredExcel.body(), { type: 'buffer' });
+    const exportedSessions = XLSX.utils.sheet_to_json<{ 'ID session': string }>(
+      reportWorkbook.Sheets.Sessions,
+    );
+    assert.deepEqual(
+      exportedSessions.map((item) => item['ID session']),
+      [session.id],
+    );
+    const exportedAnswers = XLSX.utils.sheet_to_json<{ Session: string }>(
+      reportWorkbook.Sheets['Réponses détaillées'],
+    );
+    assert.ok(
+      exportedAnswers.length > 0 && exportedAnswers.every((item) => item.Session === session.id),
+    );
+    const filteredPdf = await page.request.get(
+      `${url}/api/exports?format=pdf&dateFrom=2026-12-12&dateTo=2026-12-12`,
+    );
+    assert.equal(filteredPdf.status(), 200);
+    assert.ok((await PDFDocument.load(await filteredPdf.body())).getPageCount() > 0);
+    assert.equal(
+      (await page.request.get(`${url}/api/statistics?dateFrom=2026-02-30`)).status(),
+      400,
+    );
+    assert.equal(
+      (await page.request.get(`${url}/api/exports?dateFrom=2026-12-13&dateTo=2026-12-12`)).status(),
+      400,
+    );
+    await page.screenshot({
+      path: 'test-results/rapports-filtres-desktop.png',
+      animations: 'disabled',
+    });
+    await page.getByLabel('Période de formation', { exact: true }).selectOption('range');
+    await page.getByLabel('Du', { exact: true }).fill('2026-12-11');
+    await page.getByLabel('Au', { exact: true }).fill('2026-12-14');
+    await page.getByRole('heading', { name: 'Sessions du périmètre' }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: 'test-results/rapports-filtres-mobile.png',
+      animations: 'disabled',
+    });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.getByRole('button', { name: 'Réinitialiser', exact: true }).click();
+    assert.equal(
+      await page.getByLabel('Période de formation', { exact: true }).inputValue(),
+      'all',
+    );
+    // Start a fresh window for the independent archive/reactivation/deletion phase.
+    await db.rateLimit.deleteMany({ where: { key: { startsWith: 'admin:' } } });
+    await page.goto(`${url}/admin?view=sessions&session=${session.id}`);
+    await page.getByRole('heading', { name: 'Vue d’ensemble', exact: true }).waitFor();
     for (const format of ['xlsx', 'pdf']) {
       const report = await page.request.get(
         `${url}/api/exports?sessionId=E2E-2026-001&format=${format}`,
@@ -961,6 +1046,8 @@ async function main() {
       ).status(),
       400,
     );
+    // The destructive confirmation is a separate scenario from repeated archive/edit requests.
+    await db.rateLimit.deleteMany({ where: { key: { startsWith: 'admin:' } } });
     await page.goto(`${url}/admin?view=sessions&session=${session.id}`);
     await page.getByRole('region', { name: 'Zone de suppression définitive' }).waitFor();
     await page.getByRole('button', { name: 'Supprimer la session', exact: true }).click();

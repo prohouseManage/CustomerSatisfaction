@@ -163,6 +163,105 @@ test(
           assert.equal(stats.results[0].distribution['4'], 1);
           assert.deepEqual(stats.results[0].comments, ['Très bonne formation.']);
         });
+        await t.test(
+          'rapports : périodes inclusives, anciennes dates nulles et même nom de formation',
+          async () => {
+            const fixtures = [
+              {
+                id: 'REPORT-SPAN',
+                date: '2026-12-09',
+                endDate: '2026-12-12',
+                note: 2,
+                pending: true,
+              },
+              { id: 'REPORT-LEGACY', date: '2026-12-12', endDate: null, note: 3, pending: false },
+              {
+                id: 'REPORT-OUTSIDE',
+                date: '2026-12-13',
+                endDate: '2026-12-14',
+                note: 1,
+                pending: false,
+              },
+            ];
+            try {
+              for (const fixture of fixtures) {
+                const training = await db.trainingSession.create({
+                  data: {
+                    id: fixture.id,
+                    name: session.name,
+                    trainer: 'Test',
+                    date: new Date(fixture.date),
+                    endDate: fixture.endDate ? new Date(fixture.endDate) : null,
+                    questions: { create: { label: 'Satisfaction', type: 'RATING_4', position: 0 } },
+                  },
+                  include: { questions: true },
+                });
+                const respondent = await db.participant.create({
+                  data: {
+                    sessionId: training.id,
+                    firstName: 'Test',
+                    lastName: 'Rapport',
+                    email: 'report@example.com',
+                    tokenHash: hashToken(generateToken()),
+                    tokenEncrypted: encryptToken(generateToken()),
+                  },
+                });
+                await db.response.create({
+                  data: {
+                    sessionId: training.id,
+                    participantId: respondent.id,
+                    submittedAt: new Date('2027-01-02'),
+                    answers: [{ questionId: training.questions[0].id, value: fixture.note }],
+                  },
+                });
+                if (fixture.pending)
+                  await db.participant.create({
+                    data: {
+                      sessionId: training.id,
+                      firstName: 'Autre',
+                      lastName: 'Test',
+                      email: 'pending@example.com',
+                      tokenHash: hashToken(generateToken()),
+                      tokenEncrypted: encryptToken(generateToken()),
+                    },
+                  });
+              }
+              const day = await statistics({ dateFrom: '2026-12-11', dateTo: '2026-12-11' });
+              assert.equal(day.sessions, 2);
+              assert.equal(day.participants, 3);
+              assert.equal(day.responses, 2);
+              assert.equal(day.responseRate, (2 / 3) * 100);
+              assert.equal(day.satisfaction, 3);
+              assert.deepEqual(
+                new Set(day.results.map((q) => q.sessionId)),
+                new Set([session.id, 'REPORT-SPAN']),
+              );
+              const legacy = await statistics({ dateFrom: '2026-12-12', dateTo: '2026-12-12' });
+              assert.equal(legacy.sessions, 2);
+              assert.equal(legacy.responses, 2);
+              assert.equal(legacy.satisfaction, 2.5);
+              const exact = await statistics({
+                sessionId: 'REPORT-LEGACY',
+                dateFrom: '2026-12-12',
+                dateTo: '2026-12-12',
+              });
+              assert.equal(exact.sessions, 1);
+              assert.equal(exact.satisfaction, 3);
+              const excluded = await statistics({
+                sessionId: 'REPORT-OUTSIDE',
+                dateTo: '2026-12-11',
+              });
+              assert.equal(excluded.sessions, 0);
+              assert.equal(excluded.participants, 0);
+              assert.equal(excluded.responses, 0);
+              assert.equal(excluded.satisfaction, null);
+            } finally {
+              await db.trainingSession.deleteMany({
+                where: { id: { in: fixtures.map((fixture) => fixture.id) } },
+              });
+            }
+          },
+        );
         await t.test('limitation partagée entre appels concurrents', async () => {
           const results = await Promise.allSettled(
             Array.from({ length: 8 }, () => rateLimit('test-limit', 3, 60)),

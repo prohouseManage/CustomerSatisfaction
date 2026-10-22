@@ -33,6 +33,7 @@ export type Stats = {
     id: string;
     label: string;
     session: string;
+    sessionId?: string;
     type: string;
     archived?: boolean;
     count: number;

@@ -1,11 +1,11 @@
 import { api, requireAdmin, paginationPage } from '@/lib/security';
 import { db } from '@/lib/db';
+import { parseReportFilters, reportSessionWhere } from '@/lib/report-filters';
 export const GET = api(async (request) => {
   await requireAdmin(request);
   const params = new URL(request.url).searchParams;
-  const sessionId = params.get('sessionId') || undefined,
-    page = paginationPage(params);
-  const where = { sessionId };
+  const page = paginationPage(params);
+  const where = { session: reportSessionWhere(parseReportFilters(params)) };
   const [items, total] = await Promise.all([
     db.response.findMany({
       where,

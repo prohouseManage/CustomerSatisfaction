@@ -1,9 +1,12 @@
 import { db } from './db';
 import { ratingMax, type Answer } from './validation';
-export async function statistics(sessionId?: string) {
-  const where = sessionId ? { sessionId } : {};
+import { reportSessionWhere, type ReportFilters } from './report-filters';
+export async function statistics(input: string | ReportFilters = {}) {
+  const filters = typeof input === 'string' ? { sessionId: input } : input;
+  const sessionWhere = reportSessionWhere(filters);
+  const where = { session: sessionWhere };
   const [sessions, participants, responses, questions, deliveries] = await Promise.all([
-    db.trainingSession.count({ where: sessionId ? { id: sessionId } : {} }),
+    db.trainingSession.count({ where: sessionWhere }),
     db.participant.count({ where }),
     db.response.findMany({ where, orderBy: { submittedAt: 'asc' } }),
     db.question.findMany({
@@ -11,7 +14,9 @@ export async function statistics(sessionId?: string) {
       orderBy: { position: 'asc' },
       include: { session: { select: { name: true } } },
     }),
-    sessionId ? Promise.resolve(0) : db.webhookDelivery.count({ where: { deliveredAt: null } }),
+    filters.sessionId || filters.dateFrom || filters.dateTo
+      ? Promise.resolve(0)
+      : db.webhookDelivery.count({ where: { deliveredAt: null } }),
   ]);
   const ratings: number[] = [];
   const results = questions
@@ -48,6 +53,7 @@ export async function statistics(sessionId?: string) {
         id: q.id,
         label: q.label,
         session: q.session.name,
+        sessionId: q.sessionId,
         type: q.type,
         archived: !q.active,
         count: values.length,

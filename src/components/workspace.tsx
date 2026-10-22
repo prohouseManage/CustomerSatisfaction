@@ -59,6 +59,9 @@ import { sessionDateRange } from '@/lib/session-dates';
 import { deletionPhrase } from '@/lib/retention-policy';
 import EmailReactivationDialog from './email-reactivation';
 import type { EmailReactivation } from '@/lib/email-policy';
+import SessionOverview from './session-overview';
+import { ReportControls, ReportSessionList } from './report-controls';
+import { matchesReportSession, type ReportFilters } from '@/lib/report-filters';
 import { demoParticipants, demoSessions, demoStats } from '@/lib/demo';
 import type { ParticipantRecord, SessionRecord, Stats } from '@/lib/types';
 import { typeLabels } from '@/lib/validation';
@@ -153,8 +156,37 @@ export default function Workspace({
     [qr, setQr] = useState<{ link: string; qrCode: string } | null>(null);
   const [config, setConfig] = useState<Config | null>(null),
     [recent, setRecent] = useState<ResponseRecord[]>([]),
-    [reportSession, setReportSession] = useState(''),
     [reportStats, setReportStats] = useState<Stats | null>(null);
+  const [reportFilters, setReportFilters] = useState<ReportFilters>({});
+  const reportQuery = new URLSearchParams(
+    Object.entries(reportFilters).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  ).toString();
+  const reportFilterInvalid = Boolean(
+    reportFilters.dateFrom && reportFilters.dateTo && reportFilters.dateFrom > reportFilters.dateTo,
+  );
+  const reportSessions = sessions.filter((session) => matchesReportSession(session, reportFilters));
+  const demoReportParticipants = reportSessions.reduce(
+    (sum, session) => sum + session._count.participants,
+    0,
+  );
+  const demoReportResponses = reportSessions.reduce(
+    (sum, session) => sum + session._count.responses,
+    0,
+  );
+  const displayedReportStats: Stats | null = demo
+    ? {
+        ...demoStats,
+        sessions: reportSessions.length,
+        participants: demoReportParticipants,
+        responses: demoReportResponses,
+        responseRate: demoReportParticipants
+          ? (demoReportResponses / demoReportParticipants) * 100
+          : 0,
+        results: demoStats.results.filter((question) =>
+          reportSessions.some((session) => session.name === question.session),
+        ),
+      }
+    : reportStats;
   const [emailTarget, setEmailTarget] = useState<ParticipantRecord | null>(null);
   const [emailHistoryTarget, setEmailHistoryTarget] = useState<ParticipantRecord | null>(null);
   const [participantRefresh, setParticipantRefresh] = useState(0);
@@ -224,16 +256,14 @@ export default function Workspace({
       .catch((e) => setError(e.message));
   }, [demo, view, refresh]);
   useEffect(() => {
-    if (demo || view !== 'reports') return;
+    if (demo || view !== 'reports' || reportFilterInvalid) return;
     let live = true;
     setReportStats(null);
+    setRecent([]);
+    setError('');
     Promise.all([
-      json<Stats>(
-        `/api/statistics${reportSession ? `?sessionId=${encodeURIComponent(reportSession)}` : ''}`,
-      ),
-      json<{ items: ResponseRecord[] }>(
-        `/api/responses${reportSession ? `?sessionId=${encodeURIComponent(reportSession)}` : ''}`,
-      ),
+      json<Stats>(`/api/statistics?${reportQuery}`),
+      json<{ items: ResponseRecord[] }>(`/api/responses?${reportQuery}`),
     ])
       .then(([s, r]) => {
         if (live) {
@@ -247,7 +277,7 @@ export default function Workspace({
     return () => {
       live = false;
     };
-  }, [demo, view, reportSession, refresh]);
+  }, [demo, view, reportQuery, reportFilterInvalid, refresh]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(''), 4500);
@@ -405,14 +435,14 @@ export default function Workspace({
             <Settings2 size={19} />
             Paramètres
           </button>
+          <button
+            className={`nav-item ${view === 'automations' ? 'active' : ''}`}
+            onClick={() => go('automations')}
+          >
+            <RefreshCw size={19} />
+            Automatisations
+          </button>
         </nav>
-        <button
-          className={`nav-item ${view === 'automations' ? 'active' : ''}`}
-          onClick={() => go('automations')}
-        >
-          <RefreshCw size={19} />
-          Automatisations
-        </button>
         <div className="sidebar-bottom">
           <div className="help-card">
             <div className="help-card-icon">
@@ -683,34 +713,10 @@ export default function Workspace({
                     Retour aux sessions
                   </button>
                   <div className="session-detail-grid">
-                    <div className="panel session-info">
-                      <span className={`status ${current.status.toLowerCase()}`}>
-                        <i />
-                        {statusLabels[current.status]}
-                      </span>
-                      <p>{current.description || 'Aucune description renseignée.'}</p>
-                      <div className="detail-stat">
-                        <span>
-                          <Users size={17} />
-                          Participants<strong>{fmt(current._count.participants)}</strong>
-                        </span>
-                        <span>
-                          <MessageSquareText size={17} />
-                          Réponses<strong>{fmt(current._count.responses)}</strong>
-                        </span>
-                        <span>
-                          <Activity size={17} />
-                          Participation
-                          <strong>
-                            {percent(
-                              current._count.participants
-                                ? (current._count.responses / current._count.participants) * 100
-                                : 0,
-                            )}
-                          </strong>
-                        </span>
-                      </div>
-                    </div>
+                    <SessionOverview
+                      session={current}
+                      onEdit={() => authorized(() => setEditor(current))}
+                    />
                     <div className="panel share-panel">
                       <SessionPdfPanel
                         key={current.id}
@@ -760,7 +766,7 @@ export default function Workspace({
                           onClick={() => {
                             setTab(id);
                             if (id === 'results') {
-                              setReportSession(current.id);
+                              setReportFilters({ sessionId: current.id });
                               setView('reports');
                             }
                           }}
@@ -929,53 +935,25 @@ export default function Workspace({
               )}
               {view === 'reports' && (
                 <>
-                  <div className="report-controls">
-                    <label>
-                      Périmètre de l’analyse
-                      <select
-                        value={reportSession}
-                        onChange={(e) => setReportSession(e.target.value)}
-                      >
-                        <option value="">Toutes les sessions</option>
-                        {sessions.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div>
-                      <button
-                        className="btn secondary"
-                        onClick={() =>
-                          authorized(() =>
-                            download(
-                              `/api/exports?format=xlsx${reportSession ? `&sessionId=${reportSession}` : ''}`,
-                            ),
-                          )
-                        }
-                      >
-                        <FileSpreadsheet size={17} />
-                        Exporter Excel
-                      </button>
-                      <button
-                        className="btn secondary"
-                        onClick={() =>
-                          authorized(() =>
-                            download(
-                              `/api/exports?format=pdf${reportSession ? `&sessionId=${reportSession}` : ''}`,
-                            ),
-                          )
-                        }
-                      >
-                        <FileText size={17} />
-                        Exporter PDF
-                      </button>
-                    </div>
-                  </div>
-                  {demo || reportStats ? (
+                  <ReportControls
+                    sessions={sessions}
+                    filters={reportFilters}
+                    onChange={setReportFilters}
+                    exportDisabled={
+                      reportFilterInvalid || !reportSessions.length || !displayedReportStats
+                    }
+                    onExport={(format) =>
+                      authorized(() => download(`/api/exports?format=${format}&${reportQuery}`))
+                    }
+                  />
+                  {reportFilterInvalid ? (
+                    <p className="error-box" role="alert">
+                      La date de fin doit être égale ou postérieure à la date de début.
+                    </p>
+                  ) : displayedReportStats ? (
                     <>
-                      <Metrics stats={demo ? demoStats : reportStats!} />
+                      <Metrics stats={displayedReportStats} />
+                      <ReportSessionList sessions={reportSessions} onOpen={open} />
                       <div className="section-heading">
                         <h2>Résultats par question</h2>
                         <span className="subtle">
@@ -983,7 +961,7 @@ export default function Workspace({
                         </span>
                       </div>
                       <div className="report-grid">
-                        {(demo ? demoStats : reportStats!).results.map((q, i) => (
+                        {displayedReportStats.results.map((q, i) => (
                           <div className="panel question-report" key={q.id}>
                             <span className="eyebrow">
                               QUESTION {String(i + 1).padStart(2, '0')}
@@ -992,7 +970,10 @@ export default function Workspace({
                               </span>
                             </span>
                             <h3>{q.label}</h3>
-                            <small className="muted">{q.session}</small>
+                            <small className="muted">
+                              {q.session}
+                              {q.sessionId ? ` · ${q.sessionId}` : ''}
+                            </small>
                             {q.archived && (
                               <span className="status archived">Ancien questionnaire</span>
                             )}
@@ -1037,10 +1018,18 @@ export default function Workspace({
                           </div>
                         ))}
                       </div>
-                      {!(demo ? demoStats : reportStats!).results.length && (
+                      {!displayedReportStats.results.length && (
                         <Empty
-                          title="Les retours arrivent bientôt"
-                          text="Créez une session puis partagez les liens avec les participants."
+                          title={
+                            reportSessions.length
+                              ? 'Les retours arrivent bientôt'
+                              : 'Aucune session dans ce périmètre'
+                          }
+                          text={
+                            reportSessions.length
+                              ? 'Les résultats apparaîtront après les premières réponses.'
+                              : 'Modifiez la date ou la période pour retrouver vos sessions.'
+                          }
                         />
                       )}
                       {!demo && recent.length > 0 && (
@@ -1066,7 +1055,10 @@ export default function Workspace({
                                     <td>
                                       {r.participant.firstName} {r.participant.lastName}
                                     </td>
-                                    <td>{r.session.name}</td>
+                                    <td>
+                                      {r.session.name}
+                                      <span className="report-response-id">{r.sessionId}</span>
+                                    </td>
                                     <td>{dateFmt(r.submittedAt)}</td>
                                   </tr>
                                 ))}

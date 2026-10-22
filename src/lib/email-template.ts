@@ -58,8 +58,7 @@ export function invitationEmail(input: InvitationEmailInput) {
       .email-heading{font-size:28px!important;line-height:34px!important;}
       .brand-padding{padding:26px 22px 22px!important;}
       .formation-padding{padding:20px!important;}
-      .cta-table{width:100%!important;}
-      .cta-link{display:block!important;padding-left:10px!important;padding-right:10px!important;}
+      .cta-link{max-width:100%!important;}
     }
   </style>
 </head>
@@ -95,9 +94,17 @@ export function invitationEmail(input: InvitationEmailInput) {
               <p style="margin:24px 0 14px;color:#272331;font-size:15px;line-height:25px;font-weight:bold;">Votre expérience nous intéresse.</p>
               <p style="margin:0 0 14px;color:#575060;font-size:15px;line-height:25px;">Nous vous invitons à répondre à notre questionnaire de satisfaction pour nous faire part de vos impressions et de vos suggestions.</p>
               <p style="margin:0 0 26px;color:#575060;font-size:15px;line-height:25px;">Vos retours nous aident à améliorer nos formations et la qualité de notre accompagnement.</p>
-              <table role="presentation" class="cta-table" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
-                <tr><td align="center" bgcolor="#cb1a70" style="background-color:#cb1a70;border-radius:7px;mso-padding-alt:16px 24px;">
-                  <a class="cta-link" href="${url}" style="display:inline-block;padding:16px 24px;border:1px solid #cb1a70;border-radius:7px;color:#ffffff;font-size:15px;line-height:20px;font-weight:bold;text-decoration:none;text-align:center;">Répondre au questionnaire</a>
+              <table role="presentation" class="cta-table" cellpadding="0" cellspacing="0" border="0" style="width:auto;margin:0 0 20px;">
+                <tr><td align="left" valign="middle" style="padding:0;">
+                  <!--[if mso]>
+                  <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:44px;v-text-anchor:middle;width:250px;" arcsize="14%" strokecolor="#cb1a70" fillcolor="#cb1a70">
+                    <w:anchorlock/>
+                    <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;">Répondre au questionnaire</center>
+                  </v:roundrect>
+                  <![endif]-->
+                  <!--[if !mso]><!-->
+                  <a class="cta-link" href="${url}" style="display:inline-block;background-color:#cb1a70;padding:12px 18px;border-radius:6px;color:#ffffff;font-size:14px;line-height:20px;font-weight:bold;text-decoration:none;text-align:center;mso-hide:all;">Répondre au questionnaire</a>
+                  <!--<![endif]-->
                 </td></tr>
               </table>
               <p style="margin:0 0 26px;color:#85808e;font-size:12px;line-height:19px;">Ce lien vous est personnel. Merci de ne pas le transférer. Vous pouvez envoyer vos réponses une seule fois ; le lien sera ensuite désactivé.</p>
