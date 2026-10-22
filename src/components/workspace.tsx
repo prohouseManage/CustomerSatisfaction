@@ -52,8 +52,10 @@ import PdfTemplates, { SessionPdfPanel } from './pdf-templates';
 import OdooPanel from './odoo-panel';
 import AutomationMonitor from './automation-monitor';
 import { RefreshCw } from 'lucide-react';
-import RetentionSettingsPanel from './retention-settings';
-import { EmailSettingsPanel, SessionEmailPanel, ManualEmailDialog } from './email-controls';
+import { SessionEmailPanel, ManualEmailDialog } from './email-controls';
+import SettingsPanel from './settings';
+import Collaboration from './collaboration';
+import { roleLabels, type StaffRole } from '@/lib/staff-policy';
 import EmailHistoryDialog, { ParticipantEmailCell } from './email-history';
 import { sessionDateRange } from '@/lib/session-dates';
 import { deletionPhrase } from '@/lib/retention-policy';
@@ -76,6 +78,7 @@ const views: Record<string, string> = {
   integrations: 'Intégrations',
   automations: 'Automatisations',
   settings: 'Paramètres',
+  collaboration: 'Collaboration',
 };
 const fmt = (value: number) => new Intl.NumberFormat('fr-LU').format(value);
 const dateFmt = (value: string) =>
@@ -124,15 +127,25 @@ type ResponseRecord = {
 export default function Workspace({
   demo,
   name,
+  email = '',
+  role = 'ADMIN',
   initialView,
   initialSession,
 }: {
   demo: boolean;
   name: string;
+  email?: string;
+  role?: StaffRole;
   initialView?: string;
   initialSession?: string;
 }) {
-  const [view, setView] = useState(initialView && views[initialView] ? initialView : 'dashboard');
+  const isAdmin = role === 'ADMIN';
+  const adminViews = ['collaboration', 'templates', 'integrations'];
+  const [view, setView] = useState(
+    initialView && views[initialView] && (isAdmin || !adminViews.includes(initialView))
+      ? initialView
+      : 'dashboard',
+  );
   const [sessions, setSessions] = useState<SessionRecord[]>(demo ? demoSessions : []),
     [stats, setStats] = useState<Stats>(demo ? demoStats : emptyStats);
   const [participants, setParticipants] = useState<ParticipantRecord[]>(
@@ -311,11 +324,11 @@ export default function Workspace({
     emailsInProgress,
   ]);
   useEffect(() => {
-    if (demo || !['integrations', 'settings'].includes(view)) return;
+    if (demo || !isAdmin || !['integrations', 'settings'].includes(view)) return;
     json<Config>('/api/integrations')
       .then(setConfig)
       .catch((e) => setError(e.message));
-  }, [demo, view, refresh]);
+  }, [demo, view, refresh, isAdmin]);
   useEffect(() => {
     if (demo || view !== 'reports' || reportFilterInvalid) return;
     let live = true;
@@ -346,6 +359,7 @@ export default function Workspace({
     return () => clearTimeout(t);
   }, [toast]);
   function go(next: string) {
+    if (!isAdmin && adminViews.includes(next)) return;
     setView(next);
     setSelected('');
     setPage(1);
@@ -481,20 +495,31 @@ export default function Workspace({
         </nav>
         <div className="nav-label tools-label">VOTRE ESPACE</div>
         <nav>
-          <button
-            className={`nav-item ${view === 'templates' ? 'active' : ''}`}
-            onClick={() => go('templates')}
-          >
-            <FileText size={19} />
-            Modèles PDF
-          </button>
-          <button
-            className={`nav-item ${view === 'integrations' ? 'active' : ''}`}
-            onClick={() => go('integrations')}
-          >
-            <Link2 size={19} />
-            Intégrations<span className="new-badge">API</span>
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                className={`nav-item ${view === 'collaboration' ? 'active' : ''}`}
+                onClick={() => go('collaboration')}
+              >
+                <Users size={19} />
+                Collaboration
+              </button>
+              <button
+                className={`nav-item ${view === 'templates' ? 'active' : ''}`}
+                onClick={() => go('templates')}
+              >
+                <FileText size={19} />
+                Modèles PDF
+              </button>
+              <button
+                className={`nav-item ${view === 'integrations' ? 'active' : ''}`}
+                onClick={() => go('integrations')}
+              >
+                <Link2 size={19} />
+                Intégrations<span className="new-badge">API</span>
+              </button>
+            </>
+          )}
           <button
             className={`nav-item ${view === 'settings' ? 'active' : ''}`}
             onClick={() => go('settings')}
@@ -536,7 +561,10 @@ export default function Workspace({
             </div>
             <div>
               <strong>{name}</strong>
-              <small>Administrateur{demo ? ' · Aperçu' : ''}</small>
+              <small>
+                {roleLabels[role]}
+                {demo ? ' · Aperçu' : ''}
+              </small>
             </div>
             <button
               className="icon-btn"
@@ -566,7 +594,7 @@ export default function Workspace({
           </div>
           <div className="topbar-right">
             <span className="admin-pill">
-              <span /> Espace administrateur
+              <span /> {isAdmin ? 'Espace administrateur' : 'Espace manager'}
             </span>
             <Link className="icon-btn" href="/docs" aria-label="Documentation et aide">
               <CircleHelp size={19} />
@@ -627,6 +655,8 @@ export default function Workspace({
                   'Des retours concrets pour éclairer vos prochaines décisions.'
                 ) : view === 'integrations' ? (
                   'Reliez les retours de vos participants à vos outils.'
+                ) : view === 'collaboration' ? (
+                  'Invitez votre équipe et attribuez les bons accès.'
                 ) : view === 'templates' ? (
                   'Créez et réutilisez vos invitations aux enquêtes de satisfaction.'
                 ) : (
@@ -1328,63 +1358,19 @@ export default function Workspace({
               {view === 'templates' && (
                 <PdfTemplates demo={demo} onDemo={() => setDemoNotice(true)} />
               )}
+              {view === 'collaboration' && isAdmin && (
+                <Collaboration demo={demo} onDemo={() => setDemoNotice(true)} />
+              )}
               {view === 'settings' && (
-                <div className="settings-grid">
-                  <EmailSettingsPanel demo={demo} onDemo={() => setDemoNotice(true)} />
-                  <RetentionSettingsPanel demo={demo} onDemo={() => setDemoNotice(true)} />
-                  <section className="panel settings-panel">
-                    <div className="panel-heading">
-                      <div>
-                        <h2>Votre compte</h2>
-                        <p>Un espace réservé aux administrateurs.</p>
-                      </div>
-                      <ShieldCheck size={22} />
-                    </div>
-                    <div className="settings-row">
-                      <span>Nom</span>
-                      <strong>{name}</strong>
-                    </div>
-                    <div className="settings-row">
-                      <span>Rôle</span>
-                      <strong>Administrateur</strong>
-                    </div>
-                    <div className="settings-row">
-                      <span>Durée de connexion</span>
-                      <strong>8 heures</strong>
-                    </div>
-                    <div className="settings-row">
-                      <span>Gestion des comptes</span>
-                      <code>npm run db:admin</code>
-                    </div>
-                  </section>
-                  <section className="panel settings-panel">
-                    <div className="panel-heading">
-                      <div>
-                        <h2>Configuration technique</h2>
-                        <p>Les secrets sont définis dans l’environnement de déploiement.</p>
-                      </div>
-                      <Settings2 size={22} />
-                    </div>
-                    {[
-                      ['Base PostgreSQL / Supabase', config?.database],
-                      ['Chiffrement des liens', config?.encryption],
-                      ['Transmission Power Automate', config?.webhook],
-                      ['HTTPS', config?.https],
-                    ].map(([label, ok]) => (
-                      <div className="settings-row" key={String(label)}>
-                        <span>{label}</span>
-                        <span className={`status ${ok ? 'active' : 'draft'}`}>
-                          <i />
-                          {ok ? 'Configuré' : demo ? 'Aperçu' : 'À configurer'}
-                        </span>
-                      </div>
-                    ))}
-                    <div className="notice">
-                      Retrouvez la procédure Supabase, Vercel et SharePoint dans le README du
-                      projet.
-                    </div>
-                  </section>
-                </div>
+                <SettingsPanel
+                  name={name}
+                  email={email}
+                  role={role}
+                  config={config}
+                  demo={demo}
+                  onDemo={() => setDemoNotice(true)}
+                  onCollaboration={() => go('collaboration')}
+                />
               )}
             </>
           )}

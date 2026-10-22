@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 import { PrismaClient } from '@prisma/client';
 import EmbeddedPostgres from 'embedded-postgres';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
@@ -177,6 +177,7 @@ async function main() {
     await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
     await page.waitForURL('**/admin');
     await page.getByRole('button', { name: 'Paramètres', exact: true }).click();
+    await page.getByRole('button', { name: /Conservation.*Sessions archivées/ }).click();
     await page.getByRole('heading', { name: 'Conservation des sessions archivées' }).waitFor();
     const retentionLoaded = page.getByRole('button', {
       name: 'Enregistrer la conservation',
@@ -237,6 +238,7 @@ async function main() {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.getByRole('button', { name: 'Paramètres', exact: true }).click();
+    await page.getByRole('button', { name: /Conservation.*Sessions archivées/ }).click();
     await page.waitForFunction(
       () =>
         ![...document.querySelectorAll('button')].find((b) =>
@@ -1116,6 +1118,203 @@ async function main() {
     assert.equal(await db.pdfTemplate.count(), 0);
     await page.goto(`${url}/docs`);
     await page.getByRole('heading', { name: 'Une écoute bien organisée.' }).waitFor();
+    // Staff onboarding and authorization: only the disposable database is used.
+    await db.rateLimit.deleteMany({ where: { key: { startsWith: 'admin:' } } });
+    // Compile the onboarding routes before opening a token link. Next dev's first-route
+    // refresh otherwise interrupts the fragment-only form while a person is typing.
+    await page.request.get(`${url}/invitation`);
+    assert.equal(
+      (
+        await page.request.post(`${url}/api/collaboration/invitation`, {
+          headers: { Origin: url },
+          data: { token: randomBytes(32).toString('base64url') },
+        })
+      ).status(),
+      410,
+    );
+    assert.equal(
+      (
+        await page.request.post(`${url}/api/collaboration/accept`, {
+          headers: { Origin: url },
+          data: {},
+        })
+      ).status(),
+      400,
+    );
+    await page.goto(`${url}/admin?view=collaboration`);
+    await page.getByRole('heading', { name: /Collaborateurs/ }).waitFor();
+    await page.screenshot({ path: 'test-results/collaboration-desktop.png', fullPage: true });
+    assert.equal(
+      await page
+        .getByRole('button', { name: 'Inviter un collaborateur', exact: true })
+        .isDisabled(),
+      true,
+      'Le SMTP réel reste désactivé dans les tests.',
+    );
+    const inviter = await db.admin.findUniqueOrThrow({ where: { email: 'admin@example.com' } });
+    const staffToken = randomBytes(32).toString('base64url');
+    const staffPassword = randomBytes(18).toString('hex');
+    await db.staffInvitation.create({
+      data: {
+        email: 'manager@example.com',
+        name: 'Manager Test',
+        role: 'MANAGER',
+        inviterId: inviter.id,
+        tokenHash: createHash('sha256').update(staffToken).digest('hex'),
+        tokenEncrypted: 'unused-test-value',
+        expiresAt: new Date(Date.now() + 86400000),
+      },
+    });
+    const managerContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    try {
+      const managerPage = await managerContext.newPage();
+      await managerPage.goto(`${url}/invitation#token=${staffToken}`);
+      await managerPage.getByLabel('Votre nom', { exact: true }).waitFor();
+      assert.equal(new URL(managerPage.url()).hash, '');
+      await managerPage.getByLabel('Choisir un mot de passe', { exact: true }).fill(staffPassword);
+      await managerPage
+        .getByLabel('Confirmer le mot de passe', { exact: true })
+        .fill(staffPassword);
+      await managerPage.screenshot({
+        path: 'test-results/collaboration-activation-mobile.png',
+        fullPage: true,
+      });
+      await managerPage.getByRole('button', { name: 'Activer mon compte', exact: true }).click();
+      await managerPage.getByRole('heading', { name: 'Bienvenue dans votre équipe.' }).waitFor();
+      assert.equal(
+        (
+          await managerPage.request.post(`${url}/api/collaboration/accept`, {
+            headers: { Origin: url },
+            data: { token: staffToken, name: 'Test', password: staffPassword },
+          })
+        ).status(),
+        410,
+      );
+      await managerPage.getByRole('link', { name: 'Se connecter', exact: true }).click();
+      await managerPage.getByLabel('Adresse e-mail').fill('manager@example.com');
+      await managerPage.getByLabel('Mot de passe', { exact: true }).fill(staffPassword);
+      await managerPage.getByRole('button', { name: 'Se connecter', exact: true }).click();
+      await managerPage.waitForURL('**/admin');
+      assert.equal(
+        await managerPage.getByRole('button', { name: 'Collaboration', exact: true }).count(),
+        0,
+      );
+      assert.equal((await managerPage.request.get(`${url}/api/collaboration`)).status(), 403);
+      assert.equal((await managerPage.request.get(`${url}/api/settings/retention`)).status(), 403);
+      assert.equal((await managerPage.request.get(`${url}/api/integrations`)).status(), 403);
+      assert.equal(
+        (
+          await managerPage.request.put(`${url}/api/settings/email`, {
+            headers: { Origin: url },
+            data: { enabled: true, delayDays: 1 },
+          })
+        ).status(),
+        403,
+      );
+      assert.equal(
+        (
+          await managerPage.request.post(`${url}/api/collaboration`, {
+            headers: { Origin: url },
+            data: { email: 'forbidden@example.com' },
+          })
+        ).status(),
+        403,
+      );
+      for (const endpoint of [
+        'sessions',
+        'participants',
+        'statistics',
+        'responses',
+        'pdf-templates',
+      ])
+        assert.equal((await managerPage.request.get(`${url}/api/${endpoint}`)).status(), 200);
+      const managerSession = {
+        id: 'MANAGER-TEST',
+        name: 'Session Manager',
+        date: '2026-12-11',
+        trainer: 'Manager Test',
+        description: '',
+        status: 'ACTIVE',
+        questions: [{ label: 'Satisfaction', type: 'RATING_4', required: true, options: [] }],
+      };
+      assert.equal(
+        (
+          await managerPage.request.post(`${url}/api/sessions`, {
+            headers: { Origin: url },
+            data: managerSession,
+          })
+        ).status(),
+        201,
+      );
+      assert.equal(
+        (
+          await managerPage.request.patch(`${url}/api/sessions/MANAGER-TEST`, {
+            headers: { Origin: url },
+            data: { ...managerSession, status: 'ARCHIVED' },
+          })
+        ).status(),
+        200,
+      );
+      assert.equal(
+        (
+          await managerPage.request.delete(`${url}/api/sessions/MANAGER-TEST`, {
+            headers: { Origin: url },
+            data: { confirmation: 'supprimer la session' },
+          })
+        ).status(),
+        204,
+      );
+      await managerPage.goto(`${url}/admin?view=settings`);
+      await managerPage.getByRole('heading', { name: 'Votre compte', exact: true }).waitFor();
+      assert.equal(
+        await managerPage.getByRole('button', { name: /Conservation.*Sessions archivées/ }).count(),
+        0,
+      );
+      await managerPage.screenshot({
+        path: 'test-results/manager-settings-mobile.png',
+        fullPage: true,
+      });
+      assert.ok(
+        await managerPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      );
+      await page.reload();
+      await page.getByLabel('Rôle de Manager Test', { exact: true }).selectOption('ADMIN');
+      await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
+      await page.getByRole('dialog').waitFor({ state: 'hidden' });
+      assert.equal(
+        (await managerPage.request.get(`${url}/api/sessions`)).status(),
+        401,
+        'Le changement de rôle invalide la connexion existante.',
+      );
+      const staff = await db.admin.findUniqueOrThrow({ where: { email: 'manager@example.com' } });
+      assert.equal(staff.role, 'ADMIN');
+      await page
+        .locator('tbody tr')
+        .filter({ hasText: 'manager@example.com' })
+        .getByRole('button', { name: 'Désactiver', exact: true })
+        .click();
+      await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
+      await page.getByRole('dialog').waitFor({ state: 'hidden' });
+      assert.equal((await db.admin.findUniqueOrThrow({ where: { id: staff.id } })).enabled, false);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: 'test-results/collaboration-mobile.png', fullPage: true });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.goto(`${url}/admin?view=settings`);
+      await page.getByRole('heading', { name: 'Votre compte', exact: true }).waitFor();
+      await page.screenshot({
+        path: 'test-results/settings-reorganized-desktop.png',
+        fullPage: true,
+      });
+    } catch (error) {
+      await managerContext
+        .pages()[0]
+        ?.screenshot({ path: 'test-results/collaboration-failure.png', fullPage: true })
+        .catch(() => {});
+      throw error;
+    } finally {
+      await managerContext.close();
+    }
     // A classroom shares its IP: distinct links must not hit the old 30/5-minute budget.
     for (let i = 0; i < 40; i++) {
       const response = await page.request.post(`${url}/api/submit`, {

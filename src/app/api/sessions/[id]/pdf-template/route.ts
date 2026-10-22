@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { api, ApiError, requireAdmin, readJson } from '@/lib/security';
+import { api, ApiError, requireStaff, readJson } from '@/lib/security';
 import { db } from '@/lib/db';
 import { builtinPdfTemplates } from '@/lib/pdf-template';
 import { resolvePdfTemplate } from '@/lib/pdf-templates-server';
 import { lockSession, sessionInclude } from '@/lib/sessions';
 
 export const PUT = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const { id } = await context.params;
   const { templateId } = z
     .object({ templateId: z.string().min(1).max(100) })

@@ -12,12 +12,14 @@ export default async function Admin({
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) redirect('/login');
   const admin = await db.admin.findUnique({ where: { email: session.user.email } });
-  if (!admin) redirect('/login');
+  if (!admin?.enabled) redirect('/login');
   const params = await searchParams;
   return (
     <Workspace
       demo={false}
       name={admin.name}
+      email={admin.email}
+      role={admin.role}
       initialView={params.view}
       initialSession={params.session}
     />

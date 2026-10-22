@@ -1,17 +1,17 @@
-import { api, ApiError, requireAdmin, readJson } from '@/lib/security';
+import { api, ApiError, requireStaff, readJson } from '@/lib/security';
 import { sessionSchema } from '@/lib/validation';
 import { db } from '@/lib/db';
 import { listSessions, sessionInclude } from '@/lib/sessions';
 import { saveOdooConnection } from '@/lib/odoo-config';
 import { saveEmailSchedule, applySessionEmailTransition } from '@/lib/emails';
 export const GET = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   return Response.json(
     await listSessions(new URL(request.url).searchParams.get('compact') === 'true'),
   );
 });
 export const POST = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const {
     questions,
     date,

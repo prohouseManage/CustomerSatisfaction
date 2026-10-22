@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { api, ApiError, requireAdmin, readJson, rateLimit } from '@/lib/security';
+import { api, ApiError, requireStaff, readJson, rateLimit } from '@/lib/security';
 import { inspectOdoo, OdooError } from '@/lib/odoo-client';
 import { getOdooConfig, sessionOdooConfig } from '@/lib/odoo-config';
 import { isOdooUrl } from '@/lib/odoo-url';
@@ -13,7 +13,7 @@ const inputSchema = z.union([
   z.object({ sessionId: z.string().min(3).max(50) }).strict(),
 ]);
 export const POST = api(async (request) => {
-  const admin = await requireAdmin(request);
+  const admin = await requireStaff(request);
   await rateLimit(`odoo-verify:${admin.id}`, 12, 300);
   const input = inputSchema.parse(await readJson(request));
   const config =

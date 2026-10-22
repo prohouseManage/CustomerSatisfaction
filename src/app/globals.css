@@ -4218,3 +4218,339 @@ tbody tr:hover {
   margin: 20px 0;
   font-size: 12px;
 }
+
+/* Collaboration and focused settings sections. */
+.collaboration-space {
+  display: grid;
+  gap: 22px;
+}
+.collaboration-intro {
+  padding: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.collaboration-intro h2 {
+  margin-top: 10px;
+  font-size: 22px;
+}
+.collaboration-intro p {
+  color: var(--muted);
+  margin-top: 10px;
+  font-size: 13px;
+}
+.collaboration-intro .btn {
+  flex-shrink: 0;
+}
+.collaboration-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.collaboration-role {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+  padding: 21px;
+}
+.collaboration-role > svg {
+  color: var(--pink);
+  margin-top: 2px;
+}
+.collaboration-role p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.collaboration-email {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.collaboration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.collaboration-empty {
+  padding: 10px 24px 28px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.collaboration-space td select {
+  min-width: 145px;
+  padding: 8px;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+.settings-navigation {
+  display: grid;
+  gap: 8px;
+  position: sticky;
+  top: 24px;
+}
+.settings-navigation button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #6c587b;
+}
+.settings-navigation button.selected {
+  background: white;
+  border-color: var(--line);
+  color: var(--pink);
+  box-shadow: var(--shadow);
+}
+.settings-navigation button:hover {
+  background: var(--pink-light);
+}
+.settings-navigation strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.settings-navigation small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 5px;
+}
+.settings-content {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  max-width: 940px;
+}
+.settings-content > .panel {
+  margin: 0;
+}
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 4px 24px 24px;
+}
+.settings-profile-avatar {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--pink-light);
+  color: var(--pink);
+  font-size: 22px;
+}
+.settings-profile h3 {
+  font-size: 20px;
+}
+.settings-profile p {
+  font-size: 13px;
+  margin: 4px 0 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.settings-account-details {
+  margin: 0;
+  padding: 0 24px 22px;
+}
+.settings-account-details > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.settings-account-details dt {
+  color: var(--muted);
+}
+.settings-account-details dd {
+  margin: 0;
+}
+.settings-team-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  padding: 24px;
+}
+.settings-team-shortcut > svg {
+  color: var(--pink);
+}
+.settings-team-shortcut p {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 5px;
+}
+.settings-team-shortcut .btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.settings-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.settings-shortcuts > button {
+  display: grid;
+  justify-items: start;
+  gap: 13px;
+  text-align: left;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+}
+.settings-shortcuts > button:hover {
+  border-color: #d1acc3;
+}
+.settings-shortcuts > button > svg {
+  color: var(--pink);
+}
+.settings-shortcuts strong {
+  font-size: 13px;
+}
+.settings-shortcuts span {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.invitation-layout {
+  min-height: 100vh;
+  max-width: 590px;
+  padding: 40px 20px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+.invitation-layout > .brand {
+  width: 180px;
+}
+.invitation-card {
+  padding: 34px;
+  width: 100%;
+}
+.invitation-card h1 {
+  font-size: 28px;
+  margin: 18px 0 12px;
+}
+.invitation-card > p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
+.invitation-card form {
+  margin-top: 24px;
+}
+.invitation-card label {
+  margin-top: 18px;
+}
+.invitation-card .btn {
+  margin-top: 24px;
+}
+.invitation-identity {
+  padding: 18px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.invitation-identity > div + div {
+  margin-top: 14px;
+}
+.invitation-identity dt {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.invitation-identity dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1150px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .settings-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    position: static;
+  }
+  .settings-navigation button {
+    flex: 1 1 170px;
+  }
+  .settings-team-shortcut {
+    flex-wrap: wrap;
+  }
+  .settings-team-shortcut .btn {
+    margin-left: 0;
+  }
+}
+@media (max-width: 600px) {
+  .collaboration-intro {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 22px;
+  }
+  .collaboration-intro h2 {
+    font-size: 21px;
+  }
+  .collaboration-role-grid,
+  .settings-shortcuts {
+    grid-template-columns: 1fr;
+  }
+  .settings-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .settings-navigation button {
+    padding: 12px 10px;
+    gap: 9px;
+  }
+  .settings-navigation strong {
+    font-size: 11px;
+  }
+  .settings-navigation small {
+    font-size: 10px;
+  }
+  .settings-profile {
+    gap: 14px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .settings-profile > div {
+    min-width: 0;
+  }
+  .settings-account-details {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .settings-account-details > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .invitation-layout {
+    padding: 24px 16px;
+  }
+  .invitation-card {
+    padding: 24px 20px;
+  }
+}

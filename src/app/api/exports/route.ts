@@ -1,4 +1,4 @@
-import { api, requireAdmin, rateLimit, ApiError } from '@/lib/security';
+import { api, requireStaff, rateLimit, ApiError } from '@/lib/security';
 import { db } from '@/lib/db';
 import { statistics } from '@/lib/reports';
 import { excelResponse } from '@/lib/excel';
@@ -11,7 +11,7 @@ import { sessionSqlWhere } from '@/lib/report-queries';
 import { assertExportBytes } from '@/lib/export-limits';
 export const maxDuration = 60;
 export const GET = api(async (request) => {
-  const admin = await requireAdmin(request);
+  const admin = await requireStaff(request);
   await rateLimit(`report:${admin.id}`, 10, 300);
   const params = new URL(request.url).searchParams;
   const filters = parseReportFilters(params);

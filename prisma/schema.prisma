@@ -27,12 +27,41 @@ enum QuestionType {
   SELECT
 }
 
+enum StaffRole {
+  ADMIN
+  MANAGER
+}
+
 model Admin {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id             String            @id @default(uuid())
+  email          String            @unique
+  name           String
+  passwordHash   String
+  role           StaffRole         @default(ADMIN)
+  enabled        Boolean           @default(true)
+  sessionVersion Int               @default(0)
+  createdAt      DateTime          @default(now())
+  invitations    StaffInvitation[]
+}
+
+model StaffInvitation {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String    @default("")
+  role           StaffRole @default(MANAGER)
+  tokenHash      String    @unique
+  tokenEncrypted String
+  inviterId      String
+  inviter        Admin     @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  deliveryStatus String    @default("PENDING")
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([createdAt])
 }
 
 model TrainingSession {
@@ -64,16 +93,16 @@ model TrainingSession {
 }
 
 model Question {
-  id        String          @id @default(uuid())
-  sessionId String
-  session   TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  label     String
-  type      QuestionType
-  required  Boolean         @default(true)
-  options   String[]        @default([])
-  position  Int
-  active    Boolean         @default(true)
-  translations Json         @default("{}")
+  id           String          @id @default(uuid())
+  sessionId    String
+  session      TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  label        String
+  type         QuestionType
+  required     Boolean         @default(true)
+  options      String[]        @default([])
+  position     Int
+  active       Boolean         @default(true)
+  translations Json            @default("{}")
 
   @@unique([sessionId, position])
 }

@@ -1,4 +1,4 @@
-import { api, ApiError, requireAdmin, readJson } from '@/lib/security';
+import { api, ApiError, requireStaff, readJson } from '@/lib/security';
 import { sessionSchema } from '@/lib/validation';
 import { db } from '@/lib/db';
 import { lockSession, sessionInclude } from '@/lib/sessions';
@@ -12,14 +12,14 @@ import { ipHash } from '@/lib/security';
 import { saveEmailSchedule, applySessionEmailTransition } from '@/lib/emails';
 export const maxDuration = 60;
 export const GET = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const { id } = await context.params;
   const session = await db.trainingSession.findUnique({ where: { id }, include: sessionInclude });
   if (!session) throw new ApiError(404, 'Session introuvable.');
   return Response.json(session);
 });
 export const PATCH = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const { id } = await context.params;
   const {
     questions,
@@ -99,7 +99,7 @@ export const PATCH = api<{ id: string }>(async (request, context) => {
   return Response.json(session);
 });
 export const DELETE = api<{ id: string }>(async (request, context) => {
-  const admin = await requireAdmin(request);
+  const admin = await requireStaff(request);
   deletionSchema.parse(await readJson(request));
   const { id } = await context.params;
   const outcome = await db.$transaction(

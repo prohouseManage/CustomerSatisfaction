@@ -1,9 +1,9 @@
-import { api, ApiError, requireAdmin } from '@/lib/security';
+import { api, ApiError, requireStaff } from '@/lib/security';
 import { db } from '@/lib/db';
 import { baseUrl, decryptToken } from '@/lib/crypto';
 import QRCode from 'qrcode';
 export const GET = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const { id } = await context.params;
   const p = await db.participant.findUnique({ where: { id } });
   if (!p) throw new ApiError(404, 'Participant introuvable.');

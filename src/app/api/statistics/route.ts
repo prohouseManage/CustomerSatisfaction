@@ -1,8 +1,8 @@
-import { api, requireAdmin, paginationPage } from '@/lib/security';
+import { api, requireStaff, paginationPage } from '@/lib/security';
 import { statistics } from '@/lib/reports';
 import { parseReportFilters } from '@/lib/report-filters';
 export const GET = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const params = new URL(request.url).searchParams;
   return Response.json(
     await statistics(parseReportFilters(params), {

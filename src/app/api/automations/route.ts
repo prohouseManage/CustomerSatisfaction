@@ -1,6 +1,6 @@
-import { api, requireAdmin } from '@/lib/security';
+import { api, requireStaff } from '@/lib/security';
 import { automationOverview } from '@/lib/automations';
 export const GET = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   return Response.json(await automationOverview());
 });

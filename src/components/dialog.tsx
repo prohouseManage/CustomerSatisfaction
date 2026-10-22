@@ -13,6 +13,7 @@ export default function Dialog({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdropPointer = useRef(false);
   const titleId = useId();
   useEffect(() => {
     ref.current?.showModal();
@@ -28,8 +29,20 @@ export default function Dialog({
         e.preventDefault();
         onClose();
       }}
+      onPointerDown={(e) => {
+        const bounds = ref.current?.getBoundingClientRect();
+        backdropPointer.current = Boolean(
+          bounds &&
+          e.target === ref.current &&
+          (e.clientX < bounds.left ||
+            e.clientX > bounds.right ||
+            e.clientY < bounds.top ||
+            e.clientY > bounds.bottom),
+        );
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) onClose();
+        if (e.target === ref.current && backdropPointer.current) onClose();
+        backdropPointer.current = false;
       }}
     >
       <div className="dialog-header">

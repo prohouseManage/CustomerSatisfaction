@@ -49,10 +49,11 @@ export const openapi = {
     title: 'House of Training · API Satisfaction',
     version: '1.0.0',
     description:
-      'API serveur. Les opérations administrateur requièrent une session NextAuth avec compte existant. Les mutations requièrent Origin, sauf les webhooks qui utilisent un secret dédié. Les tokens participants ne sont jamais renvoyés dans les listes. Supabase REST ne doit pas exposer les tables.',
+      'API serveur. Session NextAuth avec compte actif requise pour les collaborateurs. Les Managers gèrent sessions, participants, réponses, rapports, envois et suppression définitive confirmée. Collaboration, réglages globaux, intégrations globales et modification des modèles PDF : administrateurs uniquement. Les mutations requièrent Origin, sauf les webhooks qui utilisent un secret dédié. Supabase REST ne doit pas exposer les tables.',
   },
   servers: [{ url: '/', description: 'Serveur courant' }],
   tags: [
+    { name: 'Collaboration' },
     { name: 'Sessions' },
     { name: 'Participants' },
     { name: 'Réponses' },
@@ -61,6 +62,123 @@ export const openapi = {
     { name: 'Intégrations' },
   ],
   paths: {
+    '/api/collaboration': {
+      get: {
+        tags: ['Collaboration'],
+        summary: 'Lister les collaborateurs et invitations (administrateur)',
+        security: adminSecurity,
+        parameters: [
+          {
+            ...pageQuery,
+            description: '50 collaborateurs par page ; 50 dernières invitations non acceptées.',
+          },
+        ],
+        responses: { 200: ok(), ...errors },
+      },
+      post: {
+        tags: ['Collaboration'],
+        summary: 'Inviter un collaborateur par e-mail (administrateur)',
+        security: adminSecurity,
+        parameters: [origin],
+        description:
+          'Invitation valable 7 jours ; compte créé uniquement lors de l’acceptation. Envoi asynchrone Mailgun, suivi PENDING/SENDING/SENT/FAILED/UNKNOWN. Aucun lien ni token renvoyé à l’administrateur.',
+        requestBody: body({
+          type: 'object',
+          required: ['email'],
+          additionalProperties: false,
+          properties: {
+            email: { type: 'string', format: 'email' },
+            name: { type: 'string', maxLength: 100 },
+            role: { type: 'string', enum: ['ADMIN', 'MANAGER'], default: 'MANAGER' },
+          },
+        }),
+        responses: { 202: ok(), ...errors },
+      },
+    },
+    '/api/collaboration/members/{id}': {
+      patch: {
+        tags: ['Collaboration'],
+        summary: 'Modifier le rôle ou désactiver un accès (administrateur)',
+        security: adminSecurity,
+        parameters: [pathId, origin],
+        description:
+          'Interdit sur son propre compte. Conserve au moins un administrateur actif. Une modification invalide les connexions précédentes, y compris après réactivation.',
+        requestBody: body({
+          type: 'object',
+          additionalProperties: false,
+          minProperties: 1,
+          properties: {
+            role: { type: 'string', enum: ['ADMIN', 'MANAGER'] },
+            enabled: { type: 'boolean' },
+          },
+        }),
+        responses: { 200: ok(), ...errors },
+      },
+    },
+    '/api/collaboration/invitations/{id}': {
+      delete: {
+        tags: ['Collaboration'],
+        summary: 'Révoquer une invitation (administrateur)',
+        security: adminSecurity,
+        parameters: [pathId, origin],
+        responses: { 204: { description: 'Invitation révoquée' }, ...errors },
+      },
+    },
+    '/api/collaboration/invitations/{id}/resend': {
+      post: {
+        tags: ['Collaboration'],
+        summary: 'Renvoyer une invitation (administrateur)',
+        security: adminSecurity,
+        parameters: [pathId, origin],
+        description:
+          'Délai minimal d’une minute ; nouveau token et nouvelle validité de 7 jours. Ancien lien immédiatement invalide. Renvoi explicite uniquement après un résultat incertain.',
+        responses: { 202: ok(), ...errors },
+      },
+    },
+    '/api/collaboration/invitation': {
+      post: {
+        tags: ['Collaboration'],
+        summary: 'Consulter une invitation sans la consommer',
+        security: [],
+        parameters: [origin],
+        requestBody: body({
+          type: 'object',
+          required: ['token'],
+          additionalProperties: false,
+          properties: { token: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' } },
+        }),
+        responses: {
+          200: ok(),
+          410: { description: 'Invitation expirée, révoquée ou utilisée' },
+          ...errors,
+        },
+      },
+    },
+    '/api/collaboration/accept': {
+      post: {
+        tags: ['Collaboration'],
+        summary: 'Activer son compte sur invitation personnelle',
+        security: [],
+        parameters: [origin],
+        description:
+          'Création atomique et usage unique. Adresse et rôle imposés par l’invitation. Aucun enregistrement libre. Mot de passe de 12 caractères minimum et de 72 octets UTF-8 maximum.',
+        requestBody: body({
+          type: 'object',
+          required: ['token', 'name', 'password'],
+          additionalProperties: false,
+          properties: {
+            token: { type: 'string', pattern: '^[A-Za-z0-9_-]{43}$' },
+            name: { type: 'string', minLength: 2, maxLength: 100 },
+            password: { type: 'string', minLength: 12, maxLength: 72, format: 'password' },
+          },
+        }),
+        responses: {
+          201: ok(),
+          410: { description: 'Invitation expirée, révoquée ou utilisée' },
+          ...errors,
+        },
+      },
+    },
     '/api/automations': {
       get: {
         tags: ['Intégrations'],

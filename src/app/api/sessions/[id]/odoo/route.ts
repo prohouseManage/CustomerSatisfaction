@@ -1,12 +1,12 @@
 import { after } from 'next/server';
-import { api, ApiError, requireAdmin, rateLimit } from '@/lib/security';
+import { api, ApiError, requireStaff, rateLimit } from '@/lib/security';
 import { db } from '@/lib/db';
 import { getOdooConfig } from '@/lib/odoo-config';
 import { lockSession } from '@/lib/sessions';
 import { deliverOdoo, odooStatus, queueOdoo } from '@/lib/odoo';
 export const maxDuration = 120;
 export const GET = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const { id } = await context.params;
   if (!(await db.trainingSession.count({ where: { id } })))
     throw new ApiError(404, 'Session introuvable.');
@@ -15,7 +15,7 @@ export const GET = api<{ id: string }>(async (request, context) => {
   );
 });
 export const POST = api<{ id: string }>(async (request, context) => {
-  const admin = await requireAdmin(request);
+  const admin = await requireStaff(request);
   await rateLimit(`odoo:${admin.id}`, 5, 300);
   const { id } = await context.params;
   const config = await getOdooConfig(id);

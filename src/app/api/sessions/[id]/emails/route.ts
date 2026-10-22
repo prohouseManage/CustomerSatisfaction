@@ -1,6 +1,6 @@
 import { after } from 'next/server';
 import { z } from 'zod';
-import { api, ApiError, requireAdmin, readJson, rateLimit } from '@/lib/security';
+import { api, ApiError, requireStaff, readJson, rateLimit } from '@/lib/security';
 import {
   emailOverview,
   queueManualEmails,
@@ -12,11 +12,11 @@ import { db } from '@/lib/db';
 import { lockSession } from '@/lib/sessions';
 export const maxDuration = 300;
 export const GET = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   return Response.json(await emailOverview((await context.params).id));
 });
 export const PUT = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const choice = emailReactivationSchema.parse(await readJson(request));
   const { id } = await context.params;
   await db.$transaction(async (tx) => {
@@ -32,7 +32,7 @@ export const PUT = api<{ id: string }>(async (request, context) => {
   return Response.json(await emailOverview(id));
 });
 export const POST = api<{ id: string }>(async (request, context) => {
-  const admin = await requireAdmin(request);
+  const admin = await requireStaff(request);
   await rateLimit(`manual-email:${admin.id}`, 6, 300);
   const input = z
     .object({

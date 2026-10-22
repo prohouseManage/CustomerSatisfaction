@@ -207,19 +207,15 @@ test(
               }));
               await db.participant.createMany({ data: people });
               await db.response.createMany({
-                data: people
-                  .slice(0, 25)
-                  .map((p) => ({
-                    participantId: p.id,
-                    sessionId: training.id,
-                    answers: training.questions
-                      .slice(0, 7)
-                      .map((q, i) => ({
-                        questionId: q.id,
-                        value: [4, 5, 10, 100, ['A', 'B'], true, 'Suggestion'][i],
-                        ...(i === 0 ? { comment: 'Commentaire de test' } : {}),
-                      })),
+                data: people.slice(0, 25).map((p) => ({
+                  participantId: p.id,
+                  sessionId: training.id,
+                  answers: training.questions.slice(0, 7).map((q, i) => ({
+                    questionId: q.id,
+                    value: [4, 5, 10, 100, ['A', 'B'], true, 'Suggestion'][i],
+                    ...(i === 0 ? { comment: 'Commentaire de test' } : {}),
                   })),
+                })),
               });
               const first = await statistics(training.id);
               assert.equal(first.results.length, 50);
@@ -433,7 +429,7 @@ test(
           const tables = await db.$queryRaw<
             { relname: string; relrowsecurity: boolean }[]
           >`SELECT relname,relrowsecurity FROM pg_class JOIN pg_namespace n ON n.oid=relnamespace WHERE n.nspname='public' AND relkind='r'`;
-          assert.equal(tables.length, 16);
+          assert.equal(tables.length, 17);
           assert.ok(tables.every((t) => t.relrowsecurity));
         });
         await t.test(

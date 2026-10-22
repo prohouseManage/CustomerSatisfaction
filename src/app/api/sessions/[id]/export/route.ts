@@ -1,4 +1,4 @@
-import { api, ApiError, requireAdmin, rateLimit, paginationPage } from '@/lib/security';
+import { api, ApiError, requireStaff, rateLimit, paginationPage } from '@/lib/security';
 import { db } from '@/lib/db';
 import { baseUrl, decryptToken } from '@/lib/crypto';
 import { excelResponse } from '@/lib/excel';
@@ -8,7 +8,7 @@ import { sessionPdfTemplateKey } from '@/lib/pdf-template';
 import { PDF_PARTICIPANTS_PER_FILE } from '@/lib/export-limits';
 export const maxDuration = 60;
 export const GET = api<{ id: string }>(async (request, context) => {
-  const admin = await requireAdmin(request);
+  const admin = await requireStaff(request);
   await rateLimit(`export:${admin.id}`, 10, 300);
   const { id } = await context.params;
   const params = new URL(request.url).searchParams;

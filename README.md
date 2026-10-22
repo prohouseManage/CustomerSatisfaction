@@ -197,6 +197,8 @@ Les invitations peuvent être envoyées par Mailgun SMTP depuis l’application,
 
 ## API REST
 
+L’onglet **Collaboration**, réservé aux administrateurs, permet d’inviter un collègue par e-mail, de lui attribuer le rôle Manager ou Administrateur et de désactiver ses accès. Invitation personnelle valable 7 jours, mot de passe choisi à l’activation. Le Manager peut gérer les formations et supprimer une session archivée avec confirmation, sans gérer les comptes ou les réglages globaux. Voir [les rôles et invitations](docs/exploitation-production.md#collaboration-et-rôles).
+
 - Guide : `/docs`
 - Spécification OpenAPI 3.0.3 : `/api/openapi` (importable dans Postman/Swagger Editor)
 - Connexion : `/login`, via NextAuth et son endpoint CSRF.

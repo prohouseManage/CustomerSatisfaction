@@ -1,7 +1,7 @@
-import { api, requireAdmin, paginationPage } from '@/lib/security';
+import { api, requireStaff, paginationPage } from '@/lib/security';
 import { listParticipants, participantFiltersSchema } from '@/lib/participants';
 export const GET = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const params = new URL(request.url).searchParams;
   const sessionId = params.get('sessionId') || undefined;
   const page = paginationPage(params);

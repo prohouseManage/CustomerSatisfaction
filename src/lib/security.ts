@@ -46,16 +46,22 @@ export function assertOrigin(request: Request) {
   )
     throw new ApiError(403, 'Origine de la requête refusée.');
 }
-export async function requireAdmin(request: Request) {
+export async function requireStaff(request: Request) {
   if (!configured()) throw new ApiError(503, 'La connexion PostgreSQL doit être configurée.');
   assertOrigin(request);
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) throw new ApiError(401, 'Authentification requise.');
   const admin = await db.admin.findUnique({ where: { email: session.user.email } });
-  if (!admin) throw new ApiError(403, 'Compte administrateur requis.');
+  if (!admin?.enabled) throw new ApiError(403, 'Compte collaborateur actif requis.');
   await rateLimit(`admin:${admin.id}`, 120);
   await audit(request, `${request.method} ${new URL(request.url).pathname}`, admin.id);
   return admin;
+}
+export async function requireAdmin(request: Request) {
+  const member = await requireStaff(request);
+  if (member.role !== 'ADMIN')
+    throw new ApiError(403, 'Cette action est réservée aux administrateurs.');
+  return member;
 }
 export async function audit(
   request: Request,

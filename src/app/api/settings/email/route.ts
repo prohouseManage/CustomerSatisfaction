@@ -1,9 +1,9 @@
-import { api, requireAdmin, readJson, ipHash } from '@/lib/security';
+import { api, requireAdmin, requireStaff, readJson, ipHash } from '@/lib/security';
 import { db } from '@/lib/db';
 import { emailSettingsSchema } from '@/lib/email-policy';
 import { getEmailPolicy, emailServiceStatus } from '@/lib/emails';
 export const GET = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   return Response.json({ ...(await getEmailPolicy()), ...emailServiceStatus() });
 });
 export const PUT = api(async (request) => {

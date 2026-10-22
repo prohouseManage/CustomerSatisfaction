@@ -1,8 +1,8 @@
-import { api, requireAdmin, paginationPage } from '@/lib/security';
+import { api, requireStaff, paginationPage } from '@/lib/security';
 import { db } from '@/lib/db';
 import { parseReportFilters, reportSessionWhere } from '@/lib/report-filters';
 export const GET = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const params = new URL(request.url).searchParams;
   const page = paginationPage(params);
   const where = { session: reportSessionWhere(parseReportFilters(params)) };

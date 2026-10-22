@@ -1,4 +1,4 @@
-import { api, ApiError, requireAdmin } from '@/lib/security';
+import { api, ApiError, requireStaff } from '@/lib/security';
 import { parseParticipants } from '@/lib/excel';
 import { db } from '@/lib/db';
 import { lockSession } from '@/lib/sessions';
@@ -8,7 +8,7 @@ import { after } from 'next/server';
 import { deliverWebhooks } from '@/lib/webhooks';
 export const maxDuration = 60;
 export const POST = api(async (request) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const reader = request.body?.getReader();
   if (!reader) throw new ApiError(400, 'Fichier manquant.');
   const chunks: Uint8Array[] = [];

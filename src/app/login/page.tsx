@@ -33,12 +33,12 @@ export default function Login() {
           <Brand />
         </div>
         <div className="login-card">
-          <span className="eyebrow pink">ESPACE ADMINISTRATEUR</span>
+          <span className="eyebrow pink">ESPACE COLLABORATEUR</span>
           <h2>Heureux de vous retrouver.</h2>
           <p className="muted">Connectez-vous à votre espace de satisfaction.</p>
           <LoginForm ready={ready} />
           <div className="secure-note">
-            <ShieldCheck size={16} /> Accès réservé aux administrateurs autorisés
+            <ShieldCheck size={16} /> Accès réservé aux collaborateurs autorisés
           </div>
           {!ready && (
             <div className="notice">

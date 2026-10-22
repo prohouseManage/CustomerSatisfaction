@@ -1,8 +1,8 @@
-import { api, ApiError, requireAdmin, paginationPage } from '@/lib/security';
+import { api, ApiError, requireStaff, paginationPage } from '@/lib/security';
 import { db } from '@/lib/db';
 import { emailHistorySelect, emailHistoryItem } from '@/lib/participants';
 export const GET = api<{ id: string }>(async (request, context) => {
-  await requireAdmin(request);
+  await requireStaff(request);
   const { id } = await context.params;
   const participant = await db.participant.findUnique({
     where: { id },
