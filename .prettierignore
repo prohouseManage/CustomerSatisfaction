@@ -1,0 +1,7 @@
+node_modules
+.next
+.test-postgres
+test-results
+package-lock.json
+public/house-of-training.svg
+prisma/migrations

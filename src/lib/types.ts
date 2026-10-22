@@ -1,0 +1,53 @@
+import type { QuestionInput } from './validation';
+import type { ParticipantEmailSummary } from './email-tracking';
+export type SessionRecord = {
+  id: string;
+  name: string;
+  date: string;
+  endDate?: string | null;
+  formLanguage?: 'fr' | 'de' | 'en' | 'auto';
+  trainer: string;
+  description: string;
+  status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  archivedAt?: string | null;
+  pdfPreset?: string;
+  pdfTemplateId?: string | null;
+  emailSchedule?: {
+    mode: 'INHERIT' | 'CUSTOM' | 'OFF';
+    delayDays: number | null;
+    suspended?: boolean;
+    resumeOn?: string | null;
+  } | null;
+  questions: (QuestionInput & { id: string })[];
+  _count: { participants: number; responses: number };
+};
+export type Stats = {
+  sessions: number;
+  participants: number;
+  responses: number;
+  responseRate: number;
+  satisfaction: number | null;
+  pendingWebhooks: number;
+  activity: { month: string; count: number }[];
+  results: {
+    id: string;
+    label: string;
+    session: string;
+    type: string;
+    archived?: boolean;
+    count: number;
+    average: number | null;
+    distribution: Record<string, number>;
+    comments: string[];
+  }[];
+};
+export type ParticipantRecord = {
+  id: string;
+  sessionId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  submittedAt: string | null;
+  session: { name: string };
+  emailSummary?: ParticipantEmailSummary;
+};

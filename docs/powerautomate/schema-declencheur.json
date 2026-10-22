@@ -1,0 +1,60 @@
+{
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "eventType",
+    "eventId",
+    "sessionId",
+    "sessionName",
+    "sessionDate",
+    "sessionVersion",
+    "sessionParticipantCount",
+    "sessionResponseCount",
+    "sessionParticipationPercent",
+    "sessionAverageScore",
+    "sessionSatisfactionPercent",
+    "scoreScale"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "enum": [2] },
+    "eventType": { "type": "string", "enum": ["satisfaction.response", "satisfaction.session"] },
+    "eventId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "sessionName": { "type": "string" },
+    "sessionDate": { "type": "string" },
+    "trainer": { "type": "string" },
+    "sessionStatus": { "type": "string" },
+    "sessionVersion": { "type": "integer" },
+    "metricsUpdatedAt": { "type": "string" },
+    "sessionParticipantCount": { "type": "integer" },
+    "sessionResponseCount": { "type": "integer" },
+    "sessionParticipationPercent": { "type": "number" },
+    "sessionAverageScore": { "type": ["number", "null"] },
+    "sessionSatisfactionPercent": { "type": ["number", "null"] },
+    "sessionRatingCount": { "type": "integer" },
+    "scoreScale": { "type": "integer" },
+    "participantId": { "type": "string" },
+    "nom": { "type": "string" },
+    "prenom": { "type": "string" },
+    "email": { "type": "string" },
+    "submittedAt": { "type": "string" },
+    "participantScore": { "type": ["number", "null"] },
+    "participantScorePercent": { "type": ["number", "null"] },
+    "participantRatingCount": { "type": "integer" },
+    "answersText": { "type": "string" },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["questionId", "value", "label", "type"],
+        "properties": {
+          "questionId": { "type": "string" },
+          "label": { "type": "string" },
+          "type": { "type": "string" },
+          "value": {},
+          "comment": { "type": "string" }
+        }
+      }
+    }
+  }
+}

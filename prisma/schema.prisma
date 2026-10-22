@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum SessionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum QuestionType {
+  SHORT_TEXT
+  LONG_TEXT
+  NUMBER
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  RATING_4
+  RATING_5
+  RATING_10
+  YES_NO
+  SELECT
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model TrainingSession {
+  id                  String                @id
+  name                String
+  date                DateTime              @db.Date
+  endDate             DateTime?             @db.Date
+  formLanguage        String                @default("fr")
+  trainer             String
+  description         String                @default("")
+  status              SessionStatus         @default(DRAFT)
+  archivedAt          DateTime?
+  pdfPreset           String                @default("hot-classic")
+  pdfTemplateId       String?
+  integrationRevision Int                   @default(0)
+  pdfTemplate         PdfTemplate?          @relation(fields: [pdfTemplateId], references: [id], onDelete: NoAction)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  questions           Question[]
+  participants        Participant[]
+  responses           Response[]
+  odooConnection      OdooConnection?
+  emailSchedule       SessionEmailSchedule?
+  emailDeliveries     EmailDelivery[]
+
+  @@index([date])
+  @@index([pdfTemplateId])
+  @@index([status, archivedAt])
+}
+
+model Question {
+  id        String          @id @default(uuid())
+  sessionId String
+  session   TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  label     String
+  type      QuestionType
+  required  Boolean         @default(true)
+  options   String[]        @default([])
+  position  Int
+  active    Boolean         @default(true)
+  translations Json         @default("{}")
+
+  @@unique([sessionId, position])
+}
+
+model Participant {
+  id              String          @id @default(uuid())
+  sessionId       String
+  session         TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  lastName        String
+  firstName       String
+  email           String
+  tokenHash       String          @unique
+  tokenEncrypted  String
+  submittedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  response        Response?
+  emailDeliveries EmailDelivery[]
+
+  @@unique([sessionId, email])
+}
+
+model Response {
+  id            String          @id @default(uuid())
+  language      String          @default("fr")
+  sessionId     String
+  session       TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participantId String          @unique
+  participant   Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  answers       Json
+  submittedAt   DateTime        @default(now())
+
+  @@index([sessionId, submittedAt])
+}
+
+model WebhookDelivery {
+  id            String    @id
+  payload       Json
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  lockedUntil   DateTime?
+  deliveredAt   DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([deliveredAt, nextAttemptAt])
+}
+
+model IntegrationEvent {
+  id         String   @id
+  payload    Json
+  receivedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  actorId    String?
+  resourceId String?
+  ipHash     String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model PdfTemplate {
+  id               String            @id @default(uuid())
+  name             String
+  heading          String
+  introduction     String
+  organizationText String
+  footer           String
+  accentColor      String
+  layout           String
+  showEmail        Boolean           @default(true)
+  showDescription  Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         TrainingSession[]
+}
+
+model OdooConnection {
+  sessionId    String          @id
+  session      TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  urlEncrypted String
+  enabled      Boolean         @default(true)
+  updatedAt    DateTime        @updatedAt
+}
+
+model RetentionSettings {
+  id        String   @id @default("retention")
+  enabled   Boolean  @default(false)
+  value     Int      @default(2)
+  unit      String   @default("MONTHS")
+  updatedAt DateTime @updatedAt
+}
+
+model EmailSettings {
+  id        String   @id @default("email")
+  enabled   Boolean  @default(false)
+  delayDays Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model SessionEmailSchedule {
+  sessionId String          @id
+  session   TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  mode      String          @default("INHERIT")
+  delayDays Int?
+  suspended Boolean         @default(false)
+  resumeOn  DateTime?       @db.Date
+  updatedAt DateTime        @updatedAt
+}
+
+model EmailDelivery {
+  id            String          @id @default(uuid())
+  sessionId     String
+  session       TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  automaticKey  String?         @unique
+  status        String          @default("PENDING")
+  lockedUntil   DateTime?
+  notBefore     DateTime?       @db.Date
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime        @default(now())
+
+  @@index([status, createdAt])
+  @@index([sessionId, participantId])
+}
+
+model AutomationRun {
+  id         String    @id @default(uuid())
+  status     String    @default("RUNNING")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  steps      Json      @default("[]")
+
+  @@index([startedAt])
+  @@index([status, startedAt])
+}

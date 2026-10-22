@@ -1,0 +1,4 @@
+{
+  "framework": "nextjs",
+  "crons": [{ "path": "/api/cron/webhooks", "schedule": "0 6 * * *" }]
+}

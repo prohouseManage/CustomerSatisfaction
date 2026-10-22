@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "eventType": "satisfaction.response",
+  "eventId": "68490212-927a-4f36-977a-c9db2df4c211",
+  "sessionId": "TEST-HOT-2026",
+  "sessionName": "TEST — Formation de démonstration",
+  "sessionDate": "2026-12-11",
+  "trainer": "Formateur de test",
+  "sessionStatus": "ACTIVE",
+  "sessionVersion": 1,
+  "metricsUpdatedAt": "2026-12-11T10:00:00.000Z",
+  "sessionParticipantCount": 5,
+  "sessionResponseCount": 1,
+  "sessionParticipationPercent": 20,
+  "sessionAverageScore": 3.5,
+  "sessionSatisfactionPercent": 87.5,
+  "sessionRatingCount": 2,
+  "scoreScale": 4,
+  "participantId": "9328afca-d3ce-4ca0-80fc-38b12338cc43",
+  "nom": "TEST Dupont",
+  "prenom": "Jean",
+  "email": "jean.test@example.com",
+  "submittedAt": "2026-12-11T10:00:00.000Z",
+  "participantScore": 3.5,
+  "participantScorePercent": 87.5,
+  "participantRatingCount": 2,
+  "answers": [
+    {
+      "questionId": "938dcd92-1456-42d5-9e3f-50296f4bb49d",
+      "label": "La formation correspondait globalement à mes attentes",
+      "type": "RATING_4",
+      "value": 4,
+      "comment": "Formation très utile."
+    },
+    {
+      "questionId": "938dcd92-1456-42d5-9e3f-50296f4bb49e",
+      "label": "Le formateur maitrisait son sujet",
+      "type": "RATING_4",
+      "value": 3
+    }
+  ],
+  "answersText": "La formation correspondait globalement à mes attentes : 4\nCommentaire : Formation très utile.\n\nLe formateur maitrisait son sujet : 3"
+}
