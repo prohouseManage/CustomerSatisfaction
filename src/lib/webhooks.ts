@@ -12,7 +12,10 @@ export function powerAutomateConfigured() {
     return false;
   }
 }
-export async function deliverWebhooks(eventId?: string) {
+export async function deliverWebhooks(
+  eventId?: string,
+  budget?: { limit: number; deadline: number },
+) {
   const url = process.env.POWER_AUTOMATE_WEBHOOK_URL;
   if (!url || !powerAutomateConfigured()) return;
   const now = new Date();
@@ -24,10 +27,11 @@ export async function deliverWebhooks(eventId?: string) {
       nextAttemptAt: { lte: now },
       OR: [{ lockedUntil: null }, { lockedUntil: { lt: now } }],
     },
-    take: 5,
+    take: budget?.limit || 5,
     orderBy: { createdAt: 'asc' },
   });
   for (const delivery of deliveries) {
+    if (budget && Date.now() + 50000 >= budget.deadline) break;
     const claim = await db.webhookDelivery.updateMany({
       where: {
         id: delivery.id,

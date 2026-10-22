@@ -40,7 +40,11 @@ export type Stats = {
     average: number | null;
     distribution: Record<string, number>;
     comments: string[];
+    commentCount?: number;
   }[];
+  resultsTotal?: number;
+  resultsPage?: number;
+  resultsPageSize?: number;
 };
 export type ParticipantRecord = {
   id: string;

@@ -158,6 +158,20 @@ export default function Workspace({
     [recent, setRecent] = useState<ResponseRecord[]>([]),
     [reportStats, setReportStats] = useState<Stats | null>(null);
   const [reportFilters, setReportFilters] = useState<ReportFilters>({});
+  const [reportPage, setReportPage] = useState(1);
+  const [reportError, setReportError] = useState('');
+  const [participantQuery, setParticipantQuery] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setParticipantQuery(query);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    setPage(1);
+  };
   const reportQuery = new URLSearchParams(
     Object.entries(reportFilters).filter((entry): entry is [string, string] => Boolean(entry[1])),
   ).toString();
@@ -196,19 +210,26 @@ export default function Workspace({
   );
   const [reactivateSession, setReactivateSession] = useState<SessionRecord | null>(null);
   const [emailRefresh, setEmailRefresh] = useState(0);
+  const [sessionDetail, setSessionDetail] = useState<SessionRecord | null>(null);
   const base = demo ? '/demo' : '/admin';
-  const current = view === 'sessions' ? sessions.find((s) => s.id === selected) : undefined;
+  const current =
+    view === 'sessions'
+      ? demo
+        ? sessions.find((s) => s.id === selected)
+        : sessionDetail?.id === selected
+          ? sessionDetail
+          : undefined
+      : undefined;
   const reload = useCallback(() => setRefresh((n) => n + 1), []);
   useEffect(() => {
     if (demo) return;
     let live = true;
     setBusy(true);
     setError('');
-    Promise.all([json<SessionRecord[]>('/api/sessions'), json<Stats>('/api/statistics')])
-      .then(([s, t]) => {
+    json<SessionRecord[]>('/api/sessions?compact=true')
+      .then((s) => {
         if (live) {
           setSessions(s);
-          setStats(t);
         }
       })
       .catch((e) => {
@@ -222,12 +243,41 @@ export default function Workspace({
     };
   }, [demo, refresh]);
   useEffect(() => {
+    if (demo || view !== 'sessions' || !selected) return;
+    let live = true;
+    setSessionDetail(null);
+    json<SessionRecord>(`/api/sessions/${encodeURIComponent(selected)}`)
+      .then((s) => {
+        if (live) setSessionDetail(s);
+      })
+      .catch((e) => {
+        if (live) setError(e.message);
+      });
+    return () => {
+      live = false;
+    };
+  }, [demo, view, selected, refresh]);
+  useEffect(() => {
+    if (demo || view !== 'dashboard') return;
+    let live = true;
+    json<Stats>('/api/statistics?summary=true')
+      .then((s) => {
+        if (live) setStats(s);
+      })
+      .catch((e) => {
+        if (live) setError(e.message);
+      });
+    return () => {
+      live = false;
+    };
+  }, [demo, refresh, view]);
+  useEffect(() => {
     if (demo) return;
     let live = true;
     if (view === 'participants' || selected) {
       const load = () =>
         json<{ items: ParticipantRecord[]; total: number }>(
-          `/api/participants?page=${page}${selected ? `&sessionId=${encodeURIComponent(selected)}` : ''}`,
+          `/api/participants?page=${page}&q=${encodeURIComponent(participantQuery)}&status=${filter === 'DONE' ? 'DONE' : filter === 'WAITING' ? 'PENDING' : 'ALL'}${selected ? `&sessionId=${encodeURIComponent(selected)}` : ''}`,
         )
           .then((p) => {
             if (live) {
@@ -248,7 +298,18 @@ export default function Workspace({
     return () => {
       live = false;
     };
-  }, [demo, view, selected, page, refresh, emailRefresh, participantRefresh, emailsInProgress]);
+  }, [
+    demo,
+    view,
+    selected,
+    page,
+    participantQuery,
+    filter,
+    refresh,
+    emailRefresh,
+    participantRefresh,
+    emailsInProgress,
+  ]);
   useEffect(() => {
     if (demo || !['integrations', 'settings'].includes(view)) return;
     json<Config>('/api/integrations')
@@ -259,10 +320,11 @@ export default function Workspace({
     if (demo || view !== 'reports' || reportFilterInvalid) return;
     let live = true;
     setReportStats(null);
+    setReportError('');
     setRecent([]);
     setError('');
     Promise.all([
-      json<Stats>(`/api/statistics?${reportQuery}`),
+      json<Stats>(`/api/statistics?${reportQuery}&page=${reportPage}`),
       json<{ items: ResponseRecord[] }>(`/api/responses?${reportQuery}`),
     ])
       .then(([s, r]) => {
@@ -272,12 +334,12 @@ export default function Workspace({
         }
       })
       .catch((e) => {
-        if (live) setError(e.message);
+        if (live) setReportError(e.message);
       });
     return () => {
       live = false;
     };
-  }, [demo, view, reportQuery, reportFilterInvalid, refresh]);
+  }, [demo, view, reportQuery, reportPage, reportFilterInvalid, refresh]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(''), 4500);
@@ -288,6 +350,7 @@ export default function Workspace({
     setSelected('');
     setPage(1);
     setQuery('');
+    setParticipantQuery('');
     setFilter('ALL');
     setMobile(false);
     setError('');
@@ -299,6 +362,8 @@ export default function Workspace({
     setTab('participants');
     setPage(1);
     setQuery('');
+    setParticipantQuery('');
+    setFilter('ALL');
     setError('');
     window.history.replaceState(null, '', `${base}?view=sessions&session=${s.id}`);
   }
@@ -369,12 +434,14 @@ export default function Workspace({
       (filter === 'ALL' || s.status === filter) &&
       `${s.name} ${s.id} ${s.trainer}`.toLowerCase().includes(query.toLowerCase()),
   );
-  const shownParticipants = participants.filter(
-    (p) =>
-      (!demo || !selected || p.sessionId === selected) &&
-      `${p.firstName} ${p.lastName} ${p.email}`.toLowerCase().includes(query.toLowerCase()) &&
-      (filter === 'ALL' || (filter === 'DONE' ? !!p.submittedAt : !p.submittedAt)),
-  );
+  const shownParticipants = !demo
+    ? participants
+    : participants.filter(
+        (p) =>
+          (!demo || !selected || p.sessionId === selected) &&
+          `${p.firstName} ${p.lastName} ${p.email}`.toLowerCase().includes(query.toLowerCase()) &&
+          (filter === 'ALL' || (filter === 'DONE' ? !!p.submittedAt : !p.submittedAt)),
+      );
   const nav = [
     { id: 'dashboard', icon: LayoutDashboard },
     { id: 'sessions', icon: CalendarDays },
@@ -615,7 +682,7 @@ export default function Workspace({
               </button>
             </div>
           )}
-          {busy ? (
+          {busy || (view === 'sessions' && selected && !current && !error) ? (
             <div className="loading-state">
               <LoaderCircle className="spin" />
               Chargement de votre espace…
@@ -657,7 +724,7 @@ export default function Workspace({
                   </div>
                 </>
               )}
-              {view === 'sessions' && !current && (
+              {view === 'sessions' && !selected && (
                 <>
                   <div className="session-summary">
                     <div>
@@ -690,7 +757,7 @@ export default function Workspace({
                       <select
                         aria-label="Filtrer par statut"
                         value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
+                        onChange={(e) => changeFilter(e.target.value)}
                       >
                         <option value="ALL">Tous les statuts</option>
                         <option value="ACTIVE">Actives</option>
@@ -723,11 +790,12 @@ export default function Workspace({
                         session={current}
                         demo={demo}
                         onDemo={() => setDemoNotice(true)}
-                        onSaved={(updated) =>
+                        onSaved={(updated) => {
+                          setSessionDetail(updated);
                           setSessions((items) =>
                             items.map((s) => (s.id === updated.id ? updated : s)),
-                          )
-                        }
+                          );
+                        }}
                         onExcel={() =>
                           authorized(() =>
                             download(`/api/sessions/${current.id}/export?format=xlsx`),
@@ -786,7 +854,7 @@ export default function Workspace({
                           <select
                             aria-label="Filtrer les réponses"
                             value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
+                            onChange={(e) => changeFilter(e.target.value)}
                           >
                             <option value="ALL">Tous les participants</option>
                             <option value="DONE">Répondu</option>
@@ -910,7 +978,7 @@ export default function Workspace({
                     <select
                       aria-label="Statut de réponse"
                       value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
+                      onChange={(e) => changeFilter(e.target.value)}
                     >
                       <option value="ALL">Tous les statuts</option>
                       <option value="DONE">Répondu</option>
@@ -938,7 +1006,10 @@ export default function Workspace({
                   <ReportControls
                     sessions={sessions}
                     filters={reportFilters}
-                    onChange={setReportFilters}
+                    onChange={(filters) => {
+                      setReportPage(1);
+                      setReportFilters(filters);
+                    }}
                     exportDisabled={
                       reportFilterInvalid || !reportSessions.length || !displayedReportStats
                     }
@@ -950,6 +1021,13 @@ export default function Workspace({
                     <p className="error-box" role="alert">
                       La date de fin doit être égale ou postérieure à la date de début.
                     </p>
+                  ) : reportError ? (
+                    <div className="error-box" role="alert">
+                      {reportError}{' '}
+                      <button className="text-btn" onClick={reload}>
+                        Réessayer
+                      </button>
+                    </div>
                   ) : displayedReportStats ? (
                     <>
                       <Metrics stats={displayedReportStats} />
@@ -957,14 +1035,21 @@ export default function Workspace({
                       <div className="section-heading">
                         <h2>Résultats par question</h2>
                         <span className="subtle">
-                          Satisfaction sur 4 étoiles. Les anciennes notes sont normalisées sur 4.
+                          Satisfaction sur 4 étoiles. Les anciennes notes sont normalisées sur 4.{' '}
+                          Aperçu des 20 derniers commentaires, abrégés à 500 caractères ; textes
+                          complets dans l’export Excel.
                         </span>
                       </div>
                       <div className="report-grid">
                         {displayedReportStats.results.map((q, i) => (
                           <div className="panel question-report" key={q.id}>
                             <span className="eyebrow">
-                              QUESTION {String(i + 1).padStart(2, '0')}
+                              QUESTION{' '}
+                              {String(
+                                (reportPage - 1) * (displayedReportStats.resultsPageSize || 50) +
+                                  i +
+                                  1,
+                              ).padStart(2, '0')}
                               <span>
                                 {q.count} réponse{q.count > 1 ? 's' : ''}
                               </span>
@@ -1010,6 +1095,12 @@ export default function Workspace({
                             {q.comments.map((c, i) => (
                               <blockquote key={i}>{c}</blockquote>
                             ))}
+                            {(q.commentCount || 0) > q.comments.length && (
+                              <p className="muted">
+                                Aperçu des {q.comments.length} derniers commentaires sur{' '}
+                                {q.commentCount}. L’export Excel contient les réponses détaillées.
+                              </p>
+                            )}
                             {q.count === 0 && (
                               <p className="muted">
                                 Les résultats apparaîtront après les premières réponses.
@@ -1018,6 +1109,37 @@ export default function Workspace({
                           </div>
                         ))}
                       </div>
+                      {(displayedReportStats.resultsTotal || 0) >
+                        (displayedReportStats.resultsPageSize || 50) && (
+                        <div className="report-pagination" aria-label="Pagination des questions">
+                          <button
+                            className="btn secondary"
+                            disabled={reportPage === 1}
+                            onClick={() => setReportPage((p) => p - 1)}
+                          >
+                            <ChevronLeft size={16} />
+                            Précédent
+                          </button>
+                          <span>
+                            Page {reportPage} sur{' '}
+                            {Math.ceil(
+                              displayedReportStats.resultsTotal! /
+                                (displayedReportStats.resultsPageSize || 50),
+                            )}
+                          </span>
+                          <button
+                            className="btn secondary"
+                            disabled={
+                              reportPage * (displayedReportStats.resultsPageSize || 50) >=
+                              displayedReportStats.resultsTotal!
+                            }
+                            onClick={() => setReportPage((p) => p + 1)}
+                          >
+                            Suivant
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )}
                       {!displayedReportStats.results.length && (
                         <Empty
                           title={

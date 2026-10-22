@@ -390,6 +390,15 @@ export const openapi = {
         tags: ['Sessions'],
         summary: 'Lister les sessions et leurs questions',
         security: adminSecurity,
+        parameters: [
+          {
+            name: 'compact',
+            in: 'query',
+            schema: { type: 'boolean', default: false },
+            description:
+              'Métadonnées et compteurs uniquement ; questions est vide. Charger GET /api/sessions/{id} pour consulter ou modifier le questionnaire.',
+          },
+        ],
         responses: { 200: ok({ type: 'array', items: ref('Session') }), ...errors },
       },
       post: {
@@ -471,7 +480,22 @@ export const openapi = {
         tags: ['Participants'],
         summary: 'Lister les participants sans token',
         security: adminSecurity,
-        parameters: [sessionQuery, pageQuery],
+        parameters: [
+          sessionQuery,
+          pageQuery,
+          {
+            name: 'q',
+            in: 'query',
+            schema: { type: 'string', maxLength: 200 },
+            description:
+              'Recherche sans distinction de casse sur nom, prénom et e-mail, sur toutes les pages. Les mots sont combinés par ET.',
+          },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['ALL', 'DONE', 'PENDING'], default: 'ALL' },
+          },
+        ],
         responses: {
           200: ok({
             type: 'object',
@@ -533,10 +557,16 @@ export const openapi = {
         tags: ['Participants'],
         summary: 'Exporter les liens Excel ou une invitation PDF par participant',
         description:
-          'PDF unique : une page A4 par participant, logo House of Training, formation, destinataire et QR code personnel cliquable. Les liens déjà consommés restent inactifs. Aucun participant : erreur 400 en PDF.',
+          'Une page A4 par participant, logo House of Training, formation et QR code personnel cliquable. Au-delà de 250 participants, choisir un lot avec page (250 pages maximum par PDF). Fichier limité à 4 Mo ; Excel à 10 000 liens. Les liens déjà consommés restent inactifs. Aucun participant : erreur 400 en PDF.',
         security: adminSecurity,
         parameters: [
           pathId,
+          {
+            name: 'page',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, default: 1 },
+            description: 'Lot PDF de 250 participants ; obligatoire au-delà de 250 participants.',
+          },
           {
             name: 'format',
             in: 'query',
@@ -631,7 +661,19 @@ export const openapi = {
         tags: ['Rapports'],
         summary: 'Statistiques et résultats par question',
         security: adminSecurity,
-        parameters: [sessionQuery, ...reportDates],
+        description:
+          'Agrégats calculés en base. 50 questions par page ; les 20 derniers commentaires par question, abrégés à 500 caractères, avec commentCount pour indiquer le total. Les compteurs et la satisfaction portent toujours sur tout le périmètre.',
+        parameters: [
+          sessionQuery,
+          ...reportDates,
+          { ...pageQuery, description: '50 questions par page' },
+          {
+            name: 'summary',
+            in: 'query',
+            schema: { type: 'boolean', default: false },
+            description: 'Compteurs et activité seulement, sans résultats détaillés.',
+          },
+        ],
         responses: { 200: ok(ref('Statistics')), ...errors },
       },
     },
@@ -639,6 +681,8 @@ export const openapi = {
       get: {
         tags: ['Rapports'],
         summary: 'Exporter les rapports Excel ou PDF',
+        description:
+          'Contrôle du volume avant chargement : 5 000 réponses, 100 000 réponses aux questions, 8 Mo de réponses JSON, 500 sessions et 2 000 questions au maximum. Fichier final limité à 4 Mo. Réduire le périmètre si erreur 413.',
         security: adminSecurity,
         parameters: [
           sessionQuery,
@@ -1090,6 +1134,9 @@ export const openapi = {
               'Moyenne sur 4 étoiles. Les anciennes notes sont normalisées : valeur / maximum initial × 4.',
           },
           pendingWebhooks: { type: 'integer' },
+          resultsTotal: { type: 'integer' },
+          resultsPage: { type: 'integer' },
+          resultsPageSize: { type: 'integer' },
           activity: {
             type: 'array',
             items: {
@@ -1119,6 +1166,10 @@ export const openapi = {
                 average: { type: 'number', nullable: true },
                 distribution: { type: 'object', additionalProperties: { type: 'integer' } },
                 comments: { type: 'array', items: { type: 'string' } },
+                commentCount: {
+                  type: 'integer',
+                  description: 'Total des commentaires avant limitation de l’aperçu.',
+                },
               },
             },
           },

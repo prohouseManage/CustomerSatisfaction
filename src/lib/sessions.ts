@@ -19,6 +19,13 @@ export const sessionInclude = {
   questions: { where: { active: true }, orderBy: { position: 'asc' as const } },
   _count: { select: { participants: true, responses: true } },
 };
-export async function listSessions() {
+export async function listSessions(compact = false) {
+  if (compact) {
+    const items = await db.trainingSession.findMany({
+      orderBy: [{ date: 'desc' }, { id: 'asc' }],
+      include: { emailSchedule: sessionInclude.emailSchedule, _count: sessionInclude._count },
+    });
+    return items.map((item) => ({ ...item, questions: [] }));
+  }
   return db.trainingSession.findMany({ orderBy: { date: 'desc' }, include: sessionInclude });
 }

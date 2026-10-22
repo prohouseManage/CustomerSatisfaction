@@ -546,6 +546,58 @@ test(
             );
           },
         );
+        await t.test(
+          'reprise volumineuse : plus de 100 envois fictifs et arrêt avant expiration du budget',
+          async () => {
+            const target = await db.trainingSession.create({
+              data: {
+                id: 'EMAIL-AUDIT-BULK',
+                name: 'Test de reprise',
+                trainer: 'Test',
+                date: new Date('2020-01-01'),
+                status: 'ACTIVE',
+              },
+            });
+            try {
+              const people = Array.from({ length: 205 }, (_, i) => {
+                const token = generateToken();
+                return {
+                  id: randomUUID(),
+                  sessionId: target.id,
+                  firstName: 'Test',
+                  lastName: `Person${i}`,
+                  email: `bulk${i}@example.org`,
+                  tokenHash: hashToken(token),
+                  tokenEncrypted: encryptToken(token),
+                };
+              });
+              await db.participant.createMany({ data: people });
+              await db.emailDelivery.createMany({
+                data: people.map((p) => ({ sessionId: target.id, participantId: p.id })),
+              });
+              let sends = 0;
+              const transport = async () => {
+                sends++;
+              };
+              const stopped = await deliverEmails(target.id, transport, new Date(), {
+                limit: 2000,
+                deadline: Date.now() + 1000,
+              });
+              assert.equal(stopped.sent, 0);
+              assert.equal(sends, 0);
+              const completed = await deliverEmails(target.id, transport, new Date(), {
+                limit: 2000,
+                deadline: Date.now() + 120000,
+              });
+              assert.equal(completed.sent, 205);
+              assert.equal(sends, 205);
+              await deliverEmails(target.id, transport);
+              assert.equal(sends, 205);
+            } finally {
+              await db.trainingSession.delete({ where: { id: target.id } });
+            }
+          },
+        );
       } finally {
         await db.$disconnect();
       }

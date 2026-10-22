@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
 loadEnvConfig(process.cwd());
-const db = new PrismaClient();
+const db = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
 async function main() {
   const email = z.string().email().parse(process.env.ADMIN_EMAIL?.trim().toLowerCase());
   const password = z

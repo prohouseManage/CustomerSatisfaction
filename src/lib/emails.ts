@@ -280,6 +280,7 @@ export async function deliverEmails(
   sessionId?: string,
   transport: (message: OutgoingEmail) => Promise<void> = sendSmtpEmail,
   now = new Date(),
+  budget?: { limit: number; deadline: number },
 ) {
   if (!emailServiceStatus().ready) return { sent: 0, uncertain: 0 };
   await db.emailDelivery.updateMany({
@@ -314,12 +315,12 @@ export async function deliverEmails(
     WHERE d.status='PENDING' AND (${sessionId || null}::text IS NULL OR d."sessionId"=${sessionId || null})
       AND s.status='ACTIVE' AND (d."notBefore" IS NULL OR d."notBefore" <= ${luxembourgDate(now)}::date)
       AND (d."automaticKey" IS NULL OR (${policy.enabled} AND NOT COALESCE(e.suspended,false) AND COALESCE(e.mode,'INHERIT')<>'OFF' AND (e."resumeOn" IS NULL OR e."resumeOn"<=${luxembourgDate(now)}::date) AND COALESCE(s."endDate",s.date)+(CASE WHEN e.mode='CUSTOM' THEN e."delayDays" ELSE ${policy.delayDays} END)::int <= ${luxembourgDate(now)}::date))
-    ORDER BY d."createdAt",d.id LIMIT 100`;
+    ORDER BY d."createdAt",d.id LIMIT ${budget?.limit || 100}`;
   let sent = 0,
     uncertain = 0;
-  const deadline = Date.now() + 180000;
+  const deadline = budget?.deadline || Date.now() + 180000;
   for (const delivery of candidates) {
-    if (Date.now() >= deadline) break;
+    if (Date.now() + 45000 >= deadline) break;
     const claimed = await db.$transaction(async (tx) => {
       await lockSession(tx, delivery.sessionId);
       const current = await tx.emailDelivery.findUnique({

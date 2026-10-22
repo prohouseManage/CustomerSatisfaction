@@ -71,7 +71,11 @@ export async function odooEvaluation(responseId: string): Promise<OdooEvaluation
     answers: response.answers as Answer[],
   };
 }
-export async function deliverOdoo(responseId?: string, onlySessionId?: string) {
+export async function deliverOdoo(
+  responseId?: string,
+  onlySessionId?: string,
+  budget?: { limit: number; deadline: number },
+) {
   const connected = await db.odooConnection.findMany({
     where: { enabled: true, ...(onlySessionId ? { sessionId: onlySessionId } : {}) },
     select: { sessionId: true },
@@ -103,10 +107,11 @@ export async function deliverOdoo(responseId?: string, onlySessionId?: string) {
   // POSTING is deliberately excluded, including after a worker crash or lease expiry.
   const jobs = await db.webhookDelivery.findMany({
     where: eligible,
-    take: 2,
+    take: budget?.limit || 2,
     orderBy: { createdAt: 'asc' },
   });
   for (const record of jobs) {
+    if (budget && Date.now() + 40000 >= budget.deadline) break;
     const job = record.payload as unknown as OdooJob;
     const config = await getOdooConfig(job.sessionId);
     if (!config) continue;

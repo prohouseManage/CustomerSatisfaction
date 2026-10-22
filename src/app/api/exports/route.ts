@@ -6,6 +6,9 @@ import type { Answer } from '@/lib/validation';
 import { jsPDF } from 'jspdf';
 import { parseReportFilters, reportSessionWhere } from '@/lib/report-filters';
 import { sessionDateRange } from '@/lib/session-dates';
+import { Prisma } from '@prisma/client';
+import { sessionSqlWhere } from '@/lib/report-queries';
+import { assertExportBytes } from '@/lib/export-limits';
 export const maxDuration = 60;
 export const GET = api(async (request) => {
   const admin = await requireAdmin(request);
@@ -15,7 +18,34 @@ export const GET = api(async (request) => {
   const { sessionId, dateFrom, dateTo } = filters;
   const sessionWhere = reportSessionWhere(filters);
   const format = params.get('format') || 'xlsx';
-  const stats = await statistics(filters);
+  if (!['xlsx', 'pdf'].includes(format)) throw new ApiError(400, 'Format invalide.');
+  // Check volume in PostgreSQL before allocating responses, PDF pages or workbook rows.
+  const [volume] = await db.$queryRaw<
+    { responses: number; answers: number; bytes: bigint }[]
+  >(Prisma.sql`
+    SELECT COUNT(*)::int AS responses, COALESCE(SUM(jsonb_array_length(r.answers)),0)::int AS answers,
+      COALESCE(SUM(octet_length(r.answers::text)),0)::bigint AS bytes
+    FROM "Response" r JOIN "TrainingSession" s ON s.id=r."sessionId" WHERE ${sessionSqlWhere(filters)}`);
+  const [sessionCount, questionCount] = await Promise.all([
+    db.trainingSession.count({ where: sessionWhere }),
+    db.question.count({ where: { session: sessionWhere } }),
+  ]);
+  if (
+    volume.responses > 5000 ||
+    volume.answers > 100000 ||
+    volume.bytes > 8_000_000n ||
+    sessionCount > 500 ||
+    questionCount > 2000
+  )
+    throw new ApiError(
+      413,
+      'Export trop volumineux. Réduisez la période ou sélectionnez une session.',
+    );
+  const stats = await statistics(filters, {
+    pageSize: 2000,
+    commentLimit: 5000,
+    commentChars: 10000,
+  });
   const sessions = await db.trainingSession.findMany({
     where: sessionWhere,
     orderBy: [{ date: 'desc' }, { id: 'asc' }],
@@ -48,8 +78,6 @@ export const GET = api(async (request) => {
         session: { select: { name: true, questions: true } },
       },
     });
-    if (responses.length > 20000)
-      throw new ApiError(413, 'Sélectionnez une session pour réduire le volume de l’export.');
     return excelResponse(
       [
         { name: 'Synthèse', rows: summary },
@@ -155,7 +183,9 @@ export const GET = api(async (request) => {
       );
     q.comments.forEach((c) => write(`Commentaire : ${c}`));
   }
-  return new Response(new Uint8Array(pdf.output('arraybuffer')), {
+  const bytes = new Uint8Array(pdf.output('arraybuffer'));
+  assertExportBytes(bytes.length);
+  return new Response(bytes, {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="rapport-${sessionId || 'global'}.pdf"`,

@@ -1,22 +1,28 @@
 import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { Answer } from './validation';
 import { rounded, ratingSummary, readableAnswers } from './satisfaction-metrics';
+import { ratingScaleSql, numericValueSql } from './report-queries';
 
 export async function sessionIntegrationData(tx: Prisma.TransactionClient, sessionId: string) {
   const session = await tx.trainingSession.findUniqueOrThrow({
     where: { id: sessionId },
     include: {
       questions: { select: { id: true, label: true, type: true } },
-      responses: { select: { answers: true } },
-      _count: { select: { participants: true } },
+      _count: { select: { participants: true, responses: true } },
     },
   });
   const types = new Map(session.questions.map((q) => [q.id, q.type]));
-  const score = ratingSummary(
-    session.responses.flatMap((r) => r.answers as Answer[]),
-    types,
-  );
+  const [aggregate] = await tx.$queryRaw<{ average: number | null; count: number }[]>(Prisma.sql`
+    SELECT AVG(${numericValueSql} * 4 / (${ratingScaleSql})) AS average, COUNT(*)::int AS count
+    FROM "Response" r CROSS JOIN LATERAL jsonb_array_elements(r.answers) a
+    JOIN "Question" q ON q.id = a->>'questionId' AND q."sessionId" = r."sessionId"
+    WHERE r."sessionId" = ${sessionId} AND ${numericValueSql} BETWEEN 1 AND (${ratingScaleSql})`);
+  const score = {
+    score: aggregate.average === null ? null : rounded(aggregate.average),
+    percent: aggregate.average === null ? null : rounded((aggregate.average / 4) * 100),
+    count: aggregate.count,
+  };
   return {
     session,
     types,
@@ -30,9 +36,9 @@ export async function sessionIntegrationData(tx: Prisma.TransactionClient, sessi
       sessionStatus: session.status,
       sessionVersion: session.integrationRevision,
       sessionParticipantCount: session._count.participants,
-      sessionResponseCount: session.responses.length,
+      sessionResponseCount: session._count.responses,
       sessionParticipationPercent: session._count.participants
-        ? rounded((session.responses.length / session._count.participants) * 100)
+        ? rounded((session._count.responses / session._count.participants) * 100)
         : 0,
       sessionAverageScore: score.score,
       sessionSatisfactionPercent: score.percent,

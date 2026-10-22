@@ -13,15 +13,29 @@ export type AutomationTasks = {
   emails: () => Promise<{ sent: number; uncertain: number }>;
   cleanup: () => Promise<unknown>;
 };
-const tasks: AutomationTasks = {
-  retention: purgeArchivedSessions,
-  queue: queueAutomaticEmails,
-  webhooks: deliverWebhooks,
-  odoo: deliverOdoo,
-  emails: deliverEmails,
-  cleanup: () => db.rateLimit.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
-};
-export async function runAutomations(work: AutomationTasks = tasks, now = new Date()) {
+function productionTasks(): AutomationTasks {
+  const deadline = Date.now() + 250000;
+  const budget = { limit: 2000, deadline };
+  return {
+    retention: purgeArchivedSessions,
+    queue: async () => {
+      let queued = 0;
+      // Each batch has its own short transaction. Never hold one transaction for the whole queue.
+      const queueDeadline = Math.min(deadline - 60000, Date.now() + 60000);
+      for (let i = 0; i < 20 && Date.now() < queueDeadline; i++) {
+        const n = await queueAutomaticEmails();
+        queued += n;
+        if (n < 100) break;
+      }
+      return queued;
+    },
+    webhooks: () => deliverWebhooks(undefined, budget),
+    odoo: () => deliverOdoo(undefined, undefined, budget),
+    emails: () => deliverEmails(undefined, undefined, new Date(), budget),
+    cleanup: () => db.rateLimit.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
+  };
+}
+export async function runAutomations(work: AutomationTasks = productionTasks(), now = new Date()) {
   const cutoff = new Date(now.getTime() - 8 * 60000);
   const claimed = await db.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(724290116::bigint)`;

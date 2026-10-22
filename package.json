@@ -14,6 +14,7 @@
     "db:migrate": "tsx scripts/prisma.ts migrate deploy",
     "db:admin": "tsx scripts/create-admin.ts",
     "db:check": "tsx scripts/check-database.ts",
+    "db:check-runtime": "tsx scripts/check-runtime-role.ts",
     "check:login": "tsx scripts/verify-live-login.ts --existing",
     "email:test": "tsx scripts/test-email.ts",
     "email:test:send": "tsx scripts/test-email.ts --send-test",

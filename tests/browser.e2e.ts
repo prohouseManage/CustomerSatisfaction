@@ -925,6 +925,8 @@ async function main() {
       date: session.date.slice(0, 10),
       endDate: session.endDate.slice(0, 10),
     };
+    // Isolate archive/reactivation checks from the preceding report/export traffic.
+    await db.rateLimit.deleteMany({ where: { key: { startsWith: 'admin:' } } });
     assert.equal(
       (
         await page.request.delete(`${url}/api/sessions/${session.id}`, {
@@ -1013,6 +1015,12 @@ async function main() {
       .check();
     const resumeDate = emailDueDate(new Date(luxembourgDate(new Date())), 7);
     await resumeDialog.getByLabel('Date de reprise', { exact: true }).fill(resumeDate);
+    await page.waitForFunction(() => {
+      const button = [...document.querySelectorAll('dialog button')].find((b) =>
+        b.textContent?.includes('Enregistrer les modifications'),
+      );
+      return button instanceof HTMLButtonElement && !button.disabled;
+    });
     const resumed = page.waitForResponse(
       (r) => r.url().endsWith(`/api/sessions/${session.id}`) && r.request().method() === 'PATCH',
     );
@@ -1108,6 +1116,35 @@ async function main() {
     assert.equal(await db.pdfTemplate.count(), 0);
     await page.goto(`${url}/docs`);
     await page.getByRole('heading', { name: 'Une écoute bien organisée.' }).waitFor();
+    // A classroom shares its IP: distinct links must not hit the old 30/5-minute budget.
+    for (let i = 0; i < 40; i++) {
+      const response = await page.request.post(`${url}/api/submit`, {
+        headers: { Origin: url },
+        data: {
+          sessionId: 'MISSING-SESSION',
+          token: randomBytes(32).toString('base64url'),
+          answers: [],
+        },
+      });
+      assert.equal(response.status(), 404);
+    }
+    const repeatedToken = randomBytes(32).toString('base64url');
+    for (let i = 0; i < 11; i++) {
+      const response = await page.request.post(`${url}/api/submit`, {
+        headers: { Origin: url },
+        data: { sessionId: 'MISSING-SESSION', token: repeatedToken, answers: [] },
+      });
+      assert.equal(response.status(), i === 10 ? 429 : 404);
+    }
+    await db.admin.update({
+      where: { email: 'admin@example.com' },
+      data: { passwordHash: await hash(randomBytes(18).toString('hex'), 12) },
+    });
+    assert.equal(
+      (await page.request.get(`${url}/api/sessions`)).status(),
+      401,
+      'Une session antérieure au changement de mot de passe doit être révoquée.',
+    );
     assert.deepEqual(pageErrors, []);
     console.log(
       'Navigateur : aperçu desktop/mobile, connexion, création/modification/archivage/suppression, import, verrouillage des questions, CSRF, exports Excel/PDF, accès anonyme, formulaire mobile et usage unique : OK.',

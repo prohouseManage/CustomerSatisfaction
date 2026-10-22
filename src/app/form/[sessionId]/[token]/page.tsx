@@ -29,7 +29,8 @@ export default async function ParticipantPage({
     limited = false;
   try {
     const hashedIp = ipHash(requestHeaders);
-    await rateLimit(`form:${hashedIp}`, 90, 300);
+    await rateLimit(`form:ip:${hashedIp}`, 1200, 300);
+    await rateLimit(`form:token:${hashToken(token)}`, 60, 300);
     const p = await db.participant.findUnique({
       where: { tokenHash: hashToken(token) },
       include: {

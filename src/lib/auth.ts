@@ -3,11 +3,37 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { db, configured } from './db';
 import { hashToken } from './crypto';
+import { passwordVersion, passwordVersionMatches } from './auth-session';
 // Dynamic import in authorize avoids a circular initialization with security.ts.
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
   pages: { signIn: '/login' },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user)
+        token.passwordVersion = (user as typeof user & { passwordVersion: string }).passwordVersion;
+      return token;
+    },
+    async session({ session, token }) {
+      const admin =
+        typeof token.email === 'string'
+          ? await db.admin.findUnique({ where: { email: token.email } })
+          : null;
+      if (
+        !admin ||
+        !process.env.NEXTAUTH_SECRET ||
+        !passwordVersionMatches(
+          token.passwordVersion,
+          admin.passwordHash,
+          process.env.NEXTAUTH_SECRET,
+        )
+      ) {
+        return { ...session, user: undefined };
+      }
+      return { ...session, user: { name: admin.name, email: admin.email } };
+    },
+  },
   providers: [
     CredentialsProvider({
       name: 'Administrateur',
@@ -48,7 +74,14 @@ export const authOptions: NextAuthOptions = {
             ipHash: hashedIp,
           },
         });
-        return valid && admin ? { id: admin.id, email: admin.email, name: admin.name } : null;
+        return valid && admin
+          ? {
+              id: admin.id,
+              email: admin.email,
+              name: admin.name,
+              passwordVersion: passwordVersion(admin.passwordHash, process.env.NEXTAUTH_SECRET),
+            }
+          : null;
       },
     }),
   ],

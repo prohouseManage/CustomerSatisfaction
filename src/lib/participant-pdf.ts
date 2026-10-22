@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import { fillTemplate, type PdfTemplateInput } from './pdf-template';
 import { ApiError } from './security';
 import { sessionDateRange } from './session-dates';
+import { assertExportBytes } from './export-limits';
 
 export type PdfSession = {
   id: string;
@@ -175,6 +176,7 @@ export async function participantPdf(
   return new Uint8Array(pdf.output('arraybuffer'));
 }
 export function pdfResponse(bytes: Uint8Array, filename: string, inline = false) {
+  assertExportBytes(bytes.length);
   return new Response(Buffer.from(bytes), {
     headers: {
       'Content-Type': 'application/pdf',

@@ -5,7 +5,7 @@
   --pink-hover: #ad135e;
   --pink-light: #fbeaf2;
   --ink: #272331;
-  --muted: #82808d;
+  --muted: #686271;
   --line: #eceaf0;
   --bg: #f7f7fa;
   --purple: #755191;
@@ -114,7 +114,7 @@ select {
 }
 input::placeholder,
 textarea::placeholder {
-  color: #7e7188;
+  color: #6e6178;
 }
 input[readonly] {
   background: #f8f7fa;
@@ -183,7 +183,7 @@ small {
   display: block;
 }
 .optional {
-  color: #7e7188;
+  color: #6e6178;
   font-weight: 400;
   font-size: 11px;
   margin-left: 5px;
@@ -193,7 +193,7 @@ small {
 }
 .inline-dot {
   margin: 0 9px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .heading-dot {
   color: var(--pink);
@@ -365,8 +365,8 @@ small {
 }
 .workspace-version {
   letter-spacing: 0.65px;
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
   border-left: 1px solid #e3dde8;
   padding-left: 8px;
   margin-left: 1px;
@@ -374,7 +374,7 @@ small {
 .nav-label {
   font-size: 9px;
   letter-spacing: 1.6px;
-  color: #7e7188;
+  color: #6e6178;
   font-weight: 650;
   padding: 0 27px;
   margin: 0 0 12px;
@@ -432,7 +432,7 @@ small {
 }
 .new-badge {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 10px;
   border: 1px solid #e8e1ed;
   padding: 2px 5px;
   border-radius: 4px;
@@ -506,7 +506,7 @@ small {
 .profile small {
   display: block;
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .profile .icon-btn {
   margin-left: auto;
@@ -533,7 +533,7 @@ small {
   align-items: center;
   gap: 12px;
   font-size: 11px;
-  color: #7e7188;
+  color: #6e6178;
   min-width: 0;
 }
 .breadcrumb strong {
@@ -677,7 +677,7 @@ small {
 }
 .metric-icon.green {
   background: #ecf7f3;
-  color: #7e7188;
+  color: #6e6178;
 }
 .metric-card > strong {
   font-size: 29px;
@@ -686,6 +686,7 @@ small {
   line-height: 1;
 }
 .metric-foot {
+  overflow-wrap: anywhere;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -693,8 +694,8 @@ small {
   margin-top: 17px;
   padding-top: 12px;
   font-size: 9px;
-  color: #7e7188;
-  white-space: nowrap;
+  color: #6e6178;
+  white-space: normal;
 }
 .tiny-dot {
   width: 4px;
@@ -727,11 +728,11 @@ small {
 }
 .panel-heading p {
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
   margin-top: 6px;
 }
 .panel-heading > svg {
-  color: #7e7188;
+  color: #6e6178;
 }
 .dashboard-charts {
   display: grid;
@@ -762,7 +763,7 @@ small {
   letter-spacing: -1px;
 }
 .chart-summary > span {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 10px;
 }
 .chart-summary .chart-legend {
@@ -789,7 +790,7 @@ small {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  color: #7e7188;
+  color: #6e6178;
   font-size: 9px;
   width: 20px;
   padding-top: 0;
@@ -859,7 +860,7 @@ small {
   position: absolute;
   top: calc(100% + 10px);
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
   text-transform: capitalize;
 }
 .satisfaction-panel .panel-heading {
@@ -897,13 +898,13 @@ small {
 }
 .satisfaction-ring strong span {
   font-size: 16px;
-  color: #7e7188;
+  color: #6e6178;
   letter-spacing: 0;
   margin-left: 3px;
   font-weight: 400;
 }
 .satisfaction-ring small {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 9px;
   margin-top: 3px;
 }
@@ -919,14 +920,14 @@ small {
   margin-top: 11px;
 }
 .satisfaction-note {
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
   margin-top: 4px;
 }
 .count-pill {
   font-size: 9px;
   background: #f5eef7;
-  color: #7e7188;
+  color: #6e6178;
   padding: 3px 6px;
   border-radius: 4px;
   font-weight: 500;
@@ -949,10 +950,10 @@ table {
 th {
   padding: 12px 20px;
   background: #fcfbfd;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.8px;
   font-weight: 600;
-  color: #7e7188;
+  color: #6e6178;
   border-top: 1px solid #f2edf6;
   border-bottom: 1px solid #f2edf6;
   white-space: nowrap;
@@ -990,15 +991,15 @@ tbody tr:hover {
 }
 .color-1 {
   background: #eef2fb;
-  color: #7e7188;
+  color: #6e6178;
 }
 .color-2 {
   background: #fcf4e9;
-  color: #7e7188;
+  color: #6e6178;
 }
 .color-3 {
   background: #ebf6f2;
-  color: #7e7188;
+  color: #6e6178;
 }
 .training-cell strong {
   font-size: 11px;
@@ -1011,8 +1012,8 @@ tbody tr:hover {
 .training-cell small {
   display: flex;
   gap: 7px;
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
 }
 .participants-count {
   display: flex;
@@ -1022,7 +1023,7 @@ tbody tr:hover {
   font-size: 11px;
 }
 .participants-count svg {
-  color: #7e7188;
+  color: #6e6178;
 }
 .response-cell {
   min-width: 94px;
@@ -1039,8 +1040,8 @@ tbody tr:hover {
   color: #6c587b;
 }
 .response-cell small {
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
 }
 .progress-track {
   height: 4px;
@@ -1072,7 +1073,7 @@ tbody tr:hover {
 }
 .status.active {
   background: #edf7f1;
-  color: #7e7188;
+  color: #6e6178;
 }
 .status.active i,
 .status-dot.active {
@@ -1080,7 +1081,7 @@ tbody tr:hover {
 }
 .status.draft {
   background: #fcf6e9;
-  color: #7e7188;
+  color: #6e6178;
 }
 .status.draft i,
 .status-dot.draft {
@@ -1088,7 +1089,7 @@ tbody tr:hover {
 }
 .status.archived {
   background: #f2eff5;
-  color: #7e7188;
+  color: #6e6178;
 }
 .status.archived i,
 .status-dot.archived {
@@ -1123,14 +1124,14 @@ tbody tr:hover {
 }
 .table-open {
   width: 25px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .bottom-note {
   display: flex;
   align-items: center;
   gap: 7px;
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
   margin: 23px 2px;
 }
 .bottom-note > span:last-child {
@@ -1138,10 +1139,10 @@ tbody tr:hover {
   align-items: center;
   gap: 5px;
   margin-left: auto;
-  color: #7e7188;
+  color: #6e6178;
 }
 .bottom-note svg {
-  color: #7e7188;
+  color: #6e6178;
 }
 .app-footer {
   margin-top: auto;
@@ -1151,7 +1152,7 @@ tbody tr:hover {
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  color: #7e7188;
+  color: #6e6178;
   font-size: 9px;
 }
 .app-footer a {
@@ -1171,7 +1172,7 @@ tbody tr:hover {
   align-items: center;
   gap: 7px;
   font-size: 11px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .session-summary strong {
   color: #6c587b;
@@ -1182,7 +1183,7 @@ tbody tr:hover {
   border-right: 1px solid #e9e0ef;
 }
 .session-summary svg {
-  color: #7e7188;
+  color: #6e6178;
 }
 .session-summary .status-dot {
   width: 6px;
@@ -1205,7 +1206,7 @@ tbody tr:hover {
   padding: 0 11px;
   max-width: 380px;
   flex: 1;
-  color: #7e7188;
+  color: #6e6178;
   min-width: 170px;
 }
 .search-input input {
@@ -1216,7 +1217,7 @@ tbody tr:hover {
   padding: 11px 0;
 }
 .search-input input::placeholder {
-  color: #7e7188;
+  color: #6e6178;
 }
 .toolbar-filters {
   display: flex;
@@ -1237,7 +1238,7 @@ tbody tr:hover {
   border-top: 1px solid #f0eaf5;
   padding: 13px 21px;
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .table-footer > div {
   display: flex;
@@ -1255,7 +1256,7 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   background: #f6f1f9;
-  color: #7e7188;
+  color: #6e6178;
   border-radius: 16px;
   margin: 0 auto 17px;
 }
@@ -1264,7 +1265,7 @@ tbody tr:hover {
   font-weight: 550;
 }
 .empty-state p {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 12px;
   margin-top: 9px;
 }
@@ -1379,7 +1380,7 @@ tbody tr:hover {
   letter-spacing: -0.7px;
 }
 .session-collection-stats span {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 10px;
 }
 .session-progress-label,
@@ -1479,7 +1480,7 @@ tbody tr:hover {
   font-size: 14px;
 }
 .share-panel p {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 10px;
   margin-top: 5px;
 }
@@ -1534,9 +1535,9 @@ tbody tr:hover {
 .person-cell .avatar {
   width: 29px;
   height: 29px;
-  font-size: 8px;
+  font-size: 10px;
   background: #f5edf8;
-  color: #7e7188;
+  color: #6e6178;
 }
 .session-bottom-actions {
   display: flex;
@@ -1559,7 +1560,7 @@ tbody tr:hover {
   border-bottom: 1px solid #f0e9f6;
 }
 .question-preview > span {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 12px;
 }
 .question-preview strong {
@@ -1569,13 +1570,13 @@ tbody tr:hover {
 }
 .question-preview p {
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
   margin-top: 7px;
 }
 .question-preview small {
   display: block;
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
   margin-top: 7px;
 }
 .report-filter-panel {
@@ -1670,15 +1671,15 @@ tbody tr:hover {
 .question-report > .eyebrow {
   display: flex;
   justify-content: space-between;
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
   letter-spacing: 1px;
 }
 .question-report > .eyebrow span {
   font-size: 9px;
   letter-spacing: 0;
   font-weight: 400;
-  color: #7e7188;
+  color: #6e6178;
 }
 .question-report h3 {
   margin: 16px 0 9px;
@@ -1696,11 +1697,11 @@ tbody tr:hover {
 }
 .question-average > span {
   font-size: 12px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .question-average svg {
   margin-left: auto;
-  color: #7e7188;
+  color: #6e6178;
 }
 .distribution > div {
   display: flex;
@@ -1708,7 +1709,7 @@ tbody tr:hover {
   gap: 10px;
   margin-top: 13px;
   font-size: 11px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .distribution > div > span {
   min-width: 18px;
@@ -1733,7 +1734,7 @@ tbody tr:hover {
   text-align: right;
   font-size: 10px;
   font-weight: 400;
-  color: #7e7188;
+  color: #6e6178;
 }
 .question-report blockquote {
   margin: 15px 0;
@@ -1772,10 +1773,10 @@ tbody tr:hover {
   border: 1px solid #e8d9f1;
   box-shadow: 0 3px 9px #ad84bd0c;
   border-radius: 14px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .integration-art > span:nth-of-type(2) {
-  color: #7e7188;
+  color: #6e6178;
 }
 .integration-art i {
   width: 70px;
@@ -1787,7 +1788,7 @@ tbody tr:hover {
 }
 .integration-hero p {
   font-size: 12px;
-  color: #7e7188;
+  color: #6e6178;
   margin-top: 12px;
 }
 .integration-grid,
@@ -1816,7 +1817,7 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   border-radius: 11px;
-  color: #7e7188;
+  color: #6e6178;
   background: #f0effc;
   margin-bottom: 21px;
 }
@@ -1845,7 +1846,7 @@ tbody tr:hover {
 }
 .integration-numbers span {
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
   display: block;
   margin-top: 5px;
 }
@@ -1861,7 +1862,7 @@ tbody tr:hover {
   width: 100%;
 }
 .endpoint > span {
-  font-size: 8px;
+  font-size: 10px;
   color: #6c587b;
   background: #efe4f8;
   border-radius: 4px;
@@ -1869,7 +1870,7 @@ tbody tr:hover {
 }
 .endpoint code {
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .integration-card > p.subtle {
   margin: 12px 0 27px;
@@ -1885,12 +1886,12 @@ tbody tr:hover {
   gap: 15px;
   padding: 18px 24px;
   font-size: 11px;
-  color: #7e7188;
+  color: #6e6178;
   border-bottom: 1px solid #f3ecf9;
 }
 .settings-row strong {
   font-size: 11px;
-  color: #7e7188;
+  color: #6e6178;
   font-weight: 500;
 }
 .settings-panel .notice {
@@ -2068,12 +2069,12 @@ tbody tr:hover {
 .pdf-mini-session {
   background: #f6f4f8;
   padding: 7px;
-  font-size: 8px;
+  font-size: 10px;
   width: 100%;
   line-height: 1.7;
 }
 .pdf-mini-session small {
-  font-size: 7px;
+  font-size: 10px;
   color: #817589;
 }
 .pdf-miniature > svg {
@@ -2201,7 +2202,7 @@ tbody tr:hover {
   gap: 6px;
   align-items: center;
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
   letter-spacing: 1px;
 }
 .question-edit-top > div {
@@ -2245,7 +2246,7 @@ tbody tr:hover {
   justify-content: center;
   background: #f8edf7;
   border-radius: 16px;
-  color: #7e7188;
+  color: #6e6178;
   margin-bottom: 20px;
 }
 .modal-feature + h3 {
@@ -2272,7 +2273,7 @@ tbody tr:hover {
   justify-content: center;
   background: #f1e5fa;
   border-radius: 12px;
-  color: #7e7188;
+  color: #6e6178;
   margin-bottom: 4px;
 }
 .upload-zone strong {
@@ -2282,12 +2283,12 @@ tbody tr:hover {
 .upload-zone > span {
   font-size: 11px;
   font-weight: 400;
-  color: #7e7188;
+  color: #6e6178;
 }
 .upload-zone small {
   font-size: 9px;
   font-weight: 400;
-  color: #7e7188;
+  color: #6e6178;
 }
 .upload-zone input {
   position: absolute;
@@ -2309,11 +2310,11 @@ tbody tr:hover {
 }
 .import-columns > span {
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
   margin-right: auto;
 }
 .import-columns code {
-  color: #7e7188;
+  color: #6e6178;
   font-size: 10px;
   background: #f8f1fc;
 }
@@ -2368,7 +2369,7 @@ tbody tr:hover {
 .login-story .eyebrow {
   font-size: 9px;
   letter-spacing: 1.7px;
-  color: #7e7188;
+  color: #6e6178;
   line-height: 1.6;
 }
 .login-story h1 {
@@ -2383,7 +2384,7 @@ tbody tr:hover {
 }
 .login-story p {
   font-size: 13px;
-  color: #7e7188;
+  color: #6e6178;
   max-width: 345px;
   line-height: 1.9;
 }
@@ -2452,11 +2453,11 @@ tbody tr:hover {
   right: 12px;
   display: flex;
   align-items: center;
-  color: #7e7188;
+  color: #6e6178;
 }
 .secure-note {
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2480,7 +2481,7 @@ tbody tr:hover {
   position: absolute;
   bottom: 25px;
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .mobile-brand {
   display: none;
@@ -2503,7 +2504,7 @@ tbody tr:hover {
   align-items: center;
   gap: 7px;
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .participant-container {
   max-width: 680px;
@@ -2528,7 +2529,7 @@ tbody tr:hover {
 }
 .participant-intro p {
   font-size: 12px;
-  color: #7e7188;
+  color: #6e6178;
   line-height: 1.8;
 }
 .duration {
@@ -2536,7 +2537,7 @@ tbody tr:hover {
   align-items: center;
   gap: 7px;
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
   margin-top: 21px;
 }
 .duration > span {
@@ -2560,15 +2561,15 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   background: #f6ebf8;
-  color: #7e7188;
+  color: #6e6178;
   border-radius: 9px;
   width: 43px;
   height: 45px;
 }
 .identity-heading small {
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 1.1px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .identity-heading h2 {
   font-size: 18px;
@@ -2588,7 +2589,7 @@ tbody tr:hover {
 }
 .identity-grid span {
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .identity-grid strong {
   font-size: 12px;
@@ -2600,7 +2601,7 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #7e7188;
+  color: #6e6178;
   font-size: 9px;
   margin-top: 23px;
   padding-top: 15px;
@@ -2614,13 +2615,13 @@ tbody tr:hover {
   flex-wrap: wrap;
   margin: 32px 0 26px;
   font-size: 10px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .form-progress > strong {
   margin-left: auto;
   font-size: 10px;
   font-weight: 500;
-  color: #7e7188;
+  color: #6e6178;
 }
 .form-progress > div {
   width: 100%;
@@ -2663,7 +2664,7 @@ tbody tr:hover {
 .question-number {
   font-size: 9px;
   background: #f8effc;
-  color: #7e7188;
+  color: #6e6178;
   border-radius: 5px;
   padding: 3px 7px;
   min-width: 26px;
@@ -2684,7 +2685,7 @@ tbody tr:hover {
 }
 .question-answer input::placeholder,
 .question-answer textarea::placeholder {
-  color: #7e7188;
+  color: #6e6178;
 }
 .rating-options {
   display: flex;
@@ -2700,7 +2701,7 @@ tbody tr:hover {
   border: 1px solid #e8d8f3;
   border-radius: 7px;
   margin: 0;
-  color: #7e7188;
+  color: #6e6178;
   font-size: 16px;
   cursor: pointer;
   transition: all 0.15s;
@@ -2801,8 +2802,8 @@ tbody tr:hover {
 .rating-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
   margin-top: 10px;
 }
 .choice-options {
@@ -2822,7 +2823,7 @@ tbody tr:hover {
   border: 1px solid #e9d9f4;
   border-radius: 7px;
   flex: 1;
-  color: #7e7188;
+  color: #6e6178;
   font-size: 12px;
   margin: 0;
   cursor: pointer;
@@ -2834,8 +2835,8 @@ tbody tr:hover {
 }
 .optional-note {
   display: block;
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
   margin-top: 12px;
 }
 .form-submit-panel {
@@ -2846,10 +2847,10 @@ tbody tr:hover {
   align-items: flex-start;
   gap: 11px;
   margin: 26px 0 14px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .privacy-message svg {
-  color: #7e7188;
+  color: #6e6178;
   margin-top: 4px;
 }
 .privacy-message p {
@@ -2858,7 +2859,7 @@ tbody tr:hover {
 }
 .required-note {
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
   margin-bottom: 23px;
 }
 .required-note > span {
@@ -2883,11 +2884,11 @@ tbody tr:hover {
 }
 .participant-footer > span {
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .participant-footer > small {
-  font-size: 8px;
-  color: #7e7188;
+  font-size: 10px;
+  color: #6e6178;
 }
 .participant-demo {
   text-align: center;
@@ -2917,13 +2918,13 @@ tbody tr:hover {
   box-shadow: 0 10px 50px #af8bc10c;
 }
 .form-state-card .eyebrow {
-  font-size: 8px;
+  font-size: 10px;
 }
 .state-icon {
   width: 79px;
   height: 79px;
   background: #f6edf9;
-  color: #7e7188;
+  color: #6e6178;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -2932,7 +2933,7 @@ tbody tr:hover {
 }
 .state-icon.success {
   background: #edf7f1;
-  color: #7e7188;
+  color: #6e6178;
 }
 .form-state-card h1 {
   font-size: 25px;
@@ -2942,7 +2943,7 @@ tbody tr:hover {
 }
 .form-state-card p {
   font-size: 12px;
-  color: #7e7188;
+  color: #6e6178;
   line-height: 1.9;
 }
 .form-state-card > .btn {
@@ -2956,7 +2957,7 @@ tbody tr:hover {
 .form-state-card small,
 .form-state > footer {
   font-size: 9px;
-  color: #7e7188;
+  color: #6e6178;
 }
 .docs-layout {
   max-width: 1040px;
@@ -2977,7 +2978,7 @@ tbody tr:hover {
 }
 .docs-layout > p {
   font-size: 13px;
-  color: #7e7188;
+  color: #6e6178;
   max-width: 730px;
 }
 .docs-actions {
@@ -3000,7 +3001,7 @@ tbody tr:hover {
 .docs-section p,
 .docs-section li {
   font-size: 12px;
-  color: #7e7188;
+  color: #6e6178;
   line-height: 1.9;
 }
 .docs-section ol {
@@ -3024,7 +3025,7 @@ tbody tr:hover {
   font-size: 11px;
 }
 .docs-section code {
-  color: #7e7188;
+  color: #6e6178;
 }
 .docs-section .endpoint {
   margin: 0;
@@ -3089,7 +3090,7 @@ tbody tr:hover {
     font-size: 9px;
   }
   .workspace-version {
-    font-size: 7px;
+    font-size: 10px;
   }
   .metric-card {
     padding: 16px 14px;
@@ -3105,7 +3106,7 @@ tbody tr:hover {
     width: 17px;
   }
   .metric-foot {
-    font-size: 8px;
+    font-size: 10px;
     gap: 4px;
   }
   .metrics-grid {
@@ -3122,7 +3123,7 @@ tbody tr:hover {
     font-size: 13px;
   }
   .period-label {
-    font-size: 8px;
+    font-size: 10px;
   }
   .bar-chart {
     height: 175px;
@@ -3135,13 +3136,13 @@ tbody tr:hover {
     padding-left: 19px;
   }
   .satisfaction-note {
-    font-size: 7px;
+    font-size: 10px;
   }
   .training-cell {
     min-width: 210px;
   }
   .training-cell small {
-    font-size: 7px;
+    font-size: 10px;
   }
   .training-cell strong {
     font-size: 10px;
@@ -3230,7 +3231,7 @@ tbody tr:hover {
     width: 17px;
   }
   .nav-item .nav-count {
-    font-size: 8px;
+    font-size: 10px;
   }
   .help-card {
     margin: 0 14px 17px;
@@ -3253,7 +3254,7 @@ tbody tr:hover {
     font-size: 10px;
   }
   .profile small {
-    font-size: 8px;
+    font-size: 10px;
   }
   .profile .avatar {
     width: 29px;
@@ -3307,7 +3308,7 @@ tbody tr:hover {
     border: 0;
     padding: 0;
     background: none;
-    font-size: 8px;
+    font-size: 10px;
     gap: 4px;
   }
   .period-label svg {
@@ -3323,7 +3324,7 @@ tbody tr:hover {
     padding-bottom: 9px;
   }
   .chart-summary > span {
-    font-size: 8px;
+    font-size: 10px;
   }
   .chart-summary .chart-legend {
     display: none;
@@ -3345,7 +3346,7 @@ tbody tr:hover {
     font-size: 9px;
   }
   .satisfaction-note {
-    font-size: 7px;
+    font-size: 10px;
   }
   .demo-banner {
     font-size: 9px;
@@ -3361,7 +3362,7 @@ tbody tr:hover {
     font-size: 25px;
   }
   .page-heading .eyebrow {
-    font-size: 8px;
+    font-size: 10px;
   }
   .heading-actions {
     padding-top: 16px;
@@ -3375,7 +3376,7 @@ tbody tr:hover {
     font-size: 10px;
   }
   .app-footer {
-    font-size: 8px;
+    font-size: 10px;
     padding: 17px 25px;
   }
   .app-footer > span:nth-child(2) {
@@ -3555,7 +3556,7 @@ tbody tr:hover {
     font-size: 27px;
   }
   .page-heading .eyebrow {
-    font-size: 8px;
+    font-size: 10px;
   }
   .page-heading p {
     font-size: 11px;
@@ -3580,14 +3581,14 @@ tbody tr:hover {
     font-size: 30px;
   }
   .metric-foot {
-    font-size: 8px;
+    font-size: 10px;
   }
   .dashboard-charts {
     gap: 15px;
     margin-bottom: 20px;
   }
   .chart-summary > span {
-    font-size: 8px;
+    font-size: 10px;
   }
   .panel-heading h2 {
     font-size: 13px;
@@ -3676,7 +3677,7 @@ tbody tr:hover {
     padding: 18px 22px;
   }
   .participant-header > span {
-    font-size: 8px;
+    font-size: 10px;
     max-width: 140px;
     line-height: 1.5;
   }
@@ -3715,7 +3716,7 @@ tbody tr:hover {
     padding-right: 16px;
   }
   .demo-banner a {
-    font-size: 8px;
+    font-size: 10px;
     gap: 3px;
   }
   .demo-banner a svg {
@@ -3768,7 +3769,7 @@ tbody tr:hover {
     font-size: 28px;
   }
   .metric-foot {
-    font-size: 7px;
+    font-size: 10px;
     gap: 4px;
     margin-top: 15px;
     padding-top: 10px;
@@ -3790,7 +3791,7 @@ tbody tr:hover {
     padding: 6px 8px;
     background: #faf6fd;
     border: 1px solid #efe4f7;
-    font-size: 8px;
+    font-size: 10px;
   }
   .chart-summary {
     padding-left: 19px;
@@ -3803,7 +3804,7 @@ tbody tr:hover {
   }
   .chart-summary .chart-legend {
     display: flex;
-    font-size: 8px;
+    font-size: 10px;
   }
   .bar-chart {
     height: 185px;
@@ -3827,10 +3828,10 @@ tbody tr:hover {
     font-size: 11px;
   }
   .satisfaction-note {
-    font-size: 8px;
+    font-size: 10px;
   }
   .bottom-note {
-    font-size: 8px;
+    font-size: 10px;
     align-items: flex-start;
     line-height: 1.6;
   }
@@ -3849,7 +3850,7 @@ tbody tr:hover {
     gap: 7px;
   }
   .session-summary > div {
-    font-size: 8px;
+    font-size: 10px;
   }
   .session-summary {
     gap: 13px;
@@ -3977,7 +3978,7 @@ tbody tr:hover {
     font-size: 11px;
   }
   .upload-zone small {
-    font-size: 8px;
+    font-size: 10px;
   }
   .upload-zone > span {
     font-size: 10px;
@@ -4035,11 +4036,11 @@ tbody tr:hover {
     font-size: 12px;
   }
   .participant-intro .eyebrow {
-    font-size: 8px;
+    font-size: 10px;
   }
   .participant-header > span {
     max-width: 125px;
-    font-size: 7px;
+    font-size: 10px;
   }
   .participant-identity {
     padding: 20px;
@@ -4078,13 +4079,13 @@ tbody tr:hover {
     height: 39px;
   }
   .rating-labels {
-    font-size: 7px;
+    font-size: 10px;
   }
   .privacy-message p {
     font-size: 10px;
   }
   .participant-footer > span {
-    font-size: 8px;
+    font-size: 10px;
   }
   .form-state-card {
     padding: 30px 23px;
@@ -4096,10 +4097,10 @@ tbody tr:hover {
     font-size: 11px;
   }
   .form-state > footer {
-    font-size: 8px;
+    font-size: 10px;
   }
   .participant-demo {
-    font-size: 8px;
+    font-size: 10px;
   }
   .login-card h2 {
     font-size: 27px;
@@ -4206,4 +4207,14 @@ tbody tr:hover {
   .retention-form {
     padding: 0 16px 20px;
   }
+}
+
+.report-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 20px 0;
+  font-size: 12px;
 }

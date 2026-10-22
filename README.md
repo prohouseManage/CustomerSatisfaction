@@ -228,6 +228,8 @@ Principaux codes : 400 validation, 401 connexion requise, 403 accès/origine ref
 
 ## Déployer sur Vercel
 
+Voir aussi [les contrôles et limites d’exploitation](docs/exploitation-production.md) : rôle PostgreSQL dédié, exports, planification et rotation des secrets.
+
 1. Importer le dépôt GitHub dans Vercel. Framework Next.js, Node.js 22, commande de build `npm run build`. `package-lock.json` est fourni. Les variables d’environnement, fichiers de test locaux et données réelles doivent rester exclus du dépôt, même lorsqu’il est public.
 2. Définir dans Vercel `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_URL` (URL HTTPS définitive), `NEXTAUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` et `CRON_SECRET`. Ajouter les variables Mailgun et Power Automate si utilisées. Pour une même base Supabase, conserver exactement `TOKEN_ENCRYPTION_KEY` pour relire les liens existants. Une base de production séparée peut utiliser des secrets distincts. Désactiver `ENABLE_DEMO` en production. Voir [la séparation GitHub / Vercel / secrets locaux](docs/publication-securite.md).
 3. Exécuter `npm run db:migrate` depuis un poste ou une étape CI disposant des variables de la base cible, **avant** de servir l’application. Les migrations ne s’exécutent pas automatiquement dans le build pour éviter les courses entre déploiements.

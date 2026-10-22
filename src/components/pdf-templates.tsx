@@ -21,6 +21,7 @@ import {
   sessionPdfTemplateKey,
 } from '@/lib/pdf-template';
 import type { SessionRecord } from '@/lib/types';
+import { PDF_PARTICIPANTS_PER_FILE } from '@/lib/export-policy';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
@@ -468,6 +469,8 @@ export function SessionPdfPanel({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [pdfPage, setPdfPage] = useState(1);
+  const pdfParts = Math.ceil(session._count.participants / PDF_PARTICIPANTS_PER_FILE);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(!demo);
   const template = templates.find((t) => t.id === selected);
@@ -520,13 +523,13 @@ export function SessionPdfPanel({
     setError('');
     try {
       const response = await fetch(
-        `/api/sessions/${encodeURIComponent(session.id)}/export?format=pdf`,
+        `/api/sessions/${encodeURIComponent(session.id)}/export?format=pdf${pdfParts > 1 ? `&page=${pdfPage}` : ''}`,
       );
       if (!response.ok) throw new Error((await response.json()).error);
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement('a');
       link.href = url;
-      link.download = `qr-${session.id}.pdf`;
+      link.download = `qr-${session.id}${pdfParts > 1 ? `-lot-${pdfPage}` : ''}.pdf`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (e) {
@@ -588,12 +591,33 @@ export function SessionPdfPanel({
           onClick={download}
         >
           {busy ? <LoaderCircle size={16} className="spin" /> : <Download size={16} />}
-          {busy ? 'Génération…' : 'Télécharger toutes les fiches PDF'}
+          {busy
+            ? 'Génération…'
+            : pdfParts > 1
+              ? `Télécharger le lot ${pdfPage}`
+              : 'Télécharger toutes les fiches PDF'}
         </button>
       </div>
+      {pdfParts > 1 && (
+        <label>
+          Lot de fiches à imprimer
+          <select
+            value={pdfPage}
+            onChange={(e) => setPdfPage(Number(e.target.value))}
+            disabled={busy}
+          >
+            {Array.from({ length: pdfParts }, (_, i) => (
+              <option key={i} value={i + 1}>
+                Lot {i + 1} : participants {i * PDF_PARTICIPANTS_PER_FILE + 1} à{' '}
+                {Math.min((i + 1) * PDF_PARTICIPANTS_PER_FILE, session._count.participants)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <p className="pdf-page-count">
         {session._count.participants
-          ? `${session._count.participants} participant(s) · ${session._count.participants} page(s) A4 dans un seul fichier`
+          ? `${session._count.participants} participant(s) · une page A4 par personne${pdfParts > 1 ? ` · ${pdfParts} lots de ${PDF_PARTICIPANTS_PER_FILE} pages maximum` : ' dans un seul fichier'}`
           : 'Importez des participants pour générer leurs fiches.'}
       </p>
       <button className="btn secondary" onClick={onExcel}>

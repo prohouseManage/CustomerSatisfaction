@@ -6,7 +6,9 @@ import { saveOdooConnection } from '@/lib/odoo-config';
 import { saveEmailSchedule, applySessionEmailTransition } from '@/lib/emails';
 export const GET = api(async (request) => {
   await requireAdmin(request);
-  return Response.json(await listSessions());
+  return Response.json(
+    await listSessions(new URL(request.url).searchParams.get('compact') === 'true'),
+  );
 });
 export const POST = api(async (request) => {
   await requireAdmin(request);

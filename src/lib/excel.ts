@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { assertExportBytes } from './export-limits';
 import { participantSchema } from './validation';
 export function parseParticipants(data: Buffer) {
   if (data.length > 2_000_000 || data.readUInt32LE(0) !== 0x04034b50)
@@ -60,6 +61,7 @@ export function excelResponse(
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(s.rows), s.name),
   );
   const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  assertExportBytes(buffer.length);
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

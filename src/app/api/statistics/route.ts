@@ -1,7 +1,13 @@
-import { api, requireAdmin } from '@/lib/security';
+import { api, requireAdmin, paginationPage } from '@/lib/security';
 import { statistics } from '@/lib/reports';
 import { parseReportFilters } from '@/lib/report-filters';
 export const GET = api(async (request) => {
   await requireAdmin(request);
-  return Response.json(await statistics(parseReportFilters(new URL(request.url).searchParams)));
+  const params = new URL(request.url).searchParams;
+  return Response.json(
+    await statistics(parseReportFilters(params), {
+      summary: params.get('summary') === 'true',
+      page: paginationPage(params),
+    }),
+  );
 });

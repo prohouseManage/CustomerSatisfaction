@@ -5,13 +5,16 @@ import { submitSchema } from '@/lib/validation';
 import { submitResponse } from '@/lib/submission';
 import { deliverWebhooks } from '@/lib/webhooks';
 import { deliverOdoo } from '@/lib/odoo';
+import { hashToken } from '@/lib/crypto';
 export const maxDuration = 60;
 export const POST = api(async (request) => {
   assertOrigin(request);
   if (!configured()) throw new ApiError(503, 'Base de données non configurée.');
   const hashedIp = ipHash(request.headers);
-  await rateLimit(`submit:${hashedIp}`, 30, 300);
+  // A classroom can share one public IP. Limit repeated use of each personal link separately.
+  await rateLimit(`submit:ip:${hashedIp}`, 600, 300);
   const input = submitSchema.parse(await readJson(request));
+  await rateLimit(`submit:token:${hashToken(input.token)}`, 10, 300);
   const id = await submitResponse(input, hashedIp);
   after(async () => {
     try {

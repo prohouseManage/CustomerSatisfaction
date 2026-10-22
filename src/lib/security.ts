@@ -94,8 +94,11 @@ export function api<P extends Record<string, string> = Record<string, never>>(
   handler: (request: Request, context: { params: Promise<P> }) => Promise<Response>,
 ) {
   return async (request: Request, context: { params: Promise<P> }) => {
+    const requestId = crypto.randomUUID();
     try {
-      return await handler(request, context);
+      const response = await handler(request, context);
+      response.headers.set('X-Request-ID', requestId);
+      return response;
     } catch (error) {
       if (error instanceof ApiError)
         return Response.json(
@@ -112,10 +115,26 @@ export function api<P extends Record<string, string> = Record<string, never>>(
           { error: 'Cet identifiant ou cet e-mail existe déjà.' },
           { status: 409 },
         );
-      console.error('api_error', error instanceof Error ? error.name : 'UnknownError');
+      // No URL query, body, database error message, e-mail address or token is logged.
+      console.error(
+        JSON.stringify({
+          event: 'api_error',
+          requestId,
+          method: request.method,
+          route: new URL(request.url).pathname.replace(
+            /\/form\/[^/]+\/[^/]+/,
+            '/form/[session]/[token]',
+          ),
+          type: error instanceof Error ? error.name : 'UnknownError',
+          ...(error instanceof Prisma.PrismaClientKnownRequestError ? { code: error.code } : {}),
+        }),
+      );
       return Response.json(
-        { error: 'Service temporairement indisponible. Vérifiez la configuration ou réessayez.' },
-        { status: 503 },
+        {
+          error: 'Service temporairement indisponible. Vérifiez la configuration ou réessayez.',
+          requestId,
+        },
+        { status: 503, headers: { 'X-Request-ID': requestId } },
       );
     }
   };

@@ -1,5 +1,11 @@
 import { db } from './db';
+import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import type { EmailHistoryItem } from './email-tracking';
+export const participantFiltersSchema = z.object({
+  q: z.string().trim().max(200).default(''),
+  status: z.enum(['ALL', 'DONE', 'PENDING']).default('ALL'),
+});
 export const emailHistorySelect = {
   id: true,
   status: true,
@@ -28,8 +34,33 @@ export function emailHistoryItem(row: {
     lastError: row.lastError,
   };
 }
-export async function listParticipants(sessionId: string | undefined, page: number) {
-  const where = { sessionId };
+export async function listParticipants(
+  sessionId: string | undefined,
+  page: number,
+  filters: { q?: string; status?: 'ALL' | 'DONE' | 'PENDING' } = {},
+) {
+  const { q, status } = participantFiltersSchema.parse(filters);
+  const where: Prisma.ParticipantWhereInput = {
+    sessionId,
+    ...(status === 'DONE'
+      ? { submittedAt: { not: null } }
+      : status === 'PENDING'
+        ? { submittedAt: null }
+        : {}),
+    ...(q
+      ? {
+          AND: q
+            .split(/\s+/)
+            .map((word) => ({
+              OR: [
+                { firstName: { contains: word, mode: 'insensitive' as const } },
+                { lastName: { contains: word, mode: 'insensitive' as const } },
+                { email: { contains: word, mode: 'insensitive' as const } },
+              ],
+            })),
+        }
+      : {}),
+  };
   const [items, total] = await Promise.all([
     db.participant.findMany({
       where,

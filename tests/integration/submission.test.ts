@@ -164,6 +164,106 @@ test(
           assert.deepEqual(stats.results[0].comments, ['Très bonne formation.']);
         });
         await t.test(
+          'rapports bornés : pagination, résumés, notes normalisées et recherche hors première page',
+          async () => {
+            const training = await db.trainingSession.create({
+              data: {
+                id: 'AUDIT-VOLUME',
+                name: 'Test de volume isolé',
+                date: new Date('2026-10-22'),
+                trainer: 'Test',
+                questions: {
+                  create: Array.from({ length: 61 }, (_, i) => ({
+                    position: i,
+                    label: `Question ${i}`,
+                    type: (
+                      [
+                        'RATING_4',
+                        'RATING_5',
+                        'RATING_10',
+                        'NUMBER',
+                        'MULTIPLE_CHOICE',
+                        'YES_NO',
+                        'LONG_TEXT',
+                      ] as const
+                    )[Math.min(i, 6)],
+                    options: i === 4 ? ['A', 'B'] : [],
+                    required: false,
+                  })),
+                },
+              },
+              include: { questions: { orderBy: { position: 'asc' } } },
+            });
+            try {
+              const people = Array.from({ length: 125 }, (_, i) => ({
+                id: randomUUID(),
+                sessionId: training.id,
+                firstName: i === 124 ? 'Zoé' : `Test${i}`,
+                lastName: i === 124 ? 'Charlier' : `A${String(i).padStart(3, '0')}`,
+                email: `person${i}@example.org`,
+                tokenHash: hashToken(generateToken()),
+                tokenEncrypted: 'unused-test-value',
+                submittedAt: i < 25 ? new Date() : null,
+              }));
+              await db.participant.createMany({ data: people });
+              await db.response.createMany({
+                data: people
+                  .slice(0, 25)
+                  .map((p) => ({
+                    participantId: p.id,
+                    sessionId: training.id,
+                    answers: training.questions
+                      .slice(0, 7)
+                      .map((q, i) => ({
+                        questionId: q.id,
+                        value: [4, 5, 10, 100, ['A', 'B'], true, 'Suggestion'][i],
+                        ...(i === 0 ? { comment: 'Commentaire de test' } : {}),
+                      })),
+                  })),
+              });
+              const first = await statistics(training.id);
+              assert.equal(first.results.length, 50);
+              assert.equal(first.resultsTotal, 61);
+              assert.equal(first.results[0].comments.length, 20);
+              assert.equal(first.results[0].commentCount, 25);
+              assert.equal(first.satisfaction, 4);
+              assert.equal(first.results[3].average, 100);
+              assert.deepEqual(first.results[4].distribution, { A: 25, B: 25 });
+              assert.deepEqual(first.results[5].distribution, { Oui: 25, Non: 0 });
+              const second = await statistics(training.id, { page: 2 });
+              assert.equal(second.results.length, 11);
+              assert.equal(
+                second.results.some((q) => first.results.some((f) => f.id === q.id)),
+                false,
+              );
+              const summary = await statistics(training.id, { summary: true });
+              assert.equal(summary.responses, 25);
+              assert.equal(summary.satisfaction, first.satisfaction);
+              assert.deepEqual(summary.results, []);
+              const { listParticipants } = await import('../../src/lib/participants');
+              assert.equal(
+                (await listParticipants(training.id, 1)).items.some(
+                  (p) => p.lastName === 'Charlier',
+                ),
+                false,
+              );
+              const found = await listParticipants(training.id, 1, {
+                q: 'Zoé Charlier',
+                status: 'PENDING',
+              });
+              assert.equal(found.total, 1);
+              assert.equal(found.items[0].email, 'person124@example.org');
+              assert.equal(
+                (await listParticipants(training.id, 1, { q: 'Charlier', status: 'DONE' })).total,
+                0,
+              );
+              assert.equal((await listParticipants(training.id, 1, { status: 'DONE' })).total, 25);
+            } finally {
+              await db.trainingSession.delete({ where: { id: training.id } });
+            }
+          },
+        );
+        await t.test(
           'rapports : périodes inclusives, anciennes dates nulles et même nom de formation',
           async () => {
             const fixtures = [
