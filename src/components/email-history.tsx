@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { History } from 'lucide-react';
+import { ChevronDown, History } from 'lucide-react';
 import Dialog from './dialog';
 import {
   emailStatusLabels,
@@ -25,48 +25,53 @@ export function ParticipantEmailCell({
   onHistory: () => void;
 }) {
   if (!summary) return <span className="subtle">Suivi indisponible</span>;
+  if (!summary.latest && !summary.sentCount) return <span className="subtle">Non envoyé</span>;
+  const latestStatus = summary.latest?.status;
+  const status = latestStatus || 'SENT';
+  const label =
+    status === 'SENT'
+      ? 'Envoyé'
+      : summary.sentCount > 0 && status === 'PENDING'
+        ? 'Rappel en attente'
+        : emailStatusLabels[status] || status;
   return (
-    <div style={{ display: 'grid', gap: 6, minWidth: 165 }}>
-      {summary.sentCount > 0 ? (
-        <>
-          <span
-            className="status active"
-            title="Le serveur SMTP Mailgun a accepté l’envoi. La réception et la lecture ne sont pas confirmées."
-          >
-            <i />
-            Envoyé
-          </span>
-          <span className="subtle">{emailDate(summary.lastSentAt)}</span>
-          <span className="subtle">{summary.sentCount} envoi(s) confirmé(s)</span>
-        </>
-      ) : !summary.latest ? (
-        <span className="subtle">Non envoyé</span>
-      ) : null}
-      {summary.latest && summary.latest.status !== 'SENT' && (
-        <>
-          <span className={`status ${statusClass(summary.latest.status)}`}>
-            <i />
-            {summary.sentCount > 0 && summary.latest.status === 'PENDING'
-              ? 'Rappel en attente'
-              : emailStatusLabels[summary.latest.status] || summary.latest.status}
-          </span>
-          {summary.latest.notBefore && summary.latest.status === 'PENDING' && (
-            <span className="subtle">
-              À partir du{' '}
-              {new Intl.DateTimeFormat('fr-LU', { timeZone: 'UTC' }).format(
-                new Date(summary.latest.notBefore),
-              )}
+    <details className="email-tracking">
+      <summary title="Afficher ou masquer les détails du suivi e-mail">
+        <span className={`status ${statusClass(status)}`}>
+          <i />
+          {label}
+        </span>
+        <ChevronDown size={14} className="email-tracking-chevron" aria-hidden="true" />
+      </summary>
+      <div className="email-tracking-details">
+        {summary.sentCount > 0 && (
+          <>
+            {status !== 'SENT' && <span className="subtle">Dernier envoi confirmé</span>}
+            <span className="subtle">{emailDate(summary.lastSentAt)}</span>
+            <span
+              className="subtle"
+              title="Le serveur SMTP Mailgun a accepté l’envoi. La réception et la lecture ne sont pas confirmées."
+            >
+              {summary.sentCount} envoi(s) confirmé(s)
             </span>
-          )}
-        </>
-      )}
-      {summary.latest && (
-        <button className="text-link" onClick={onHistory}>
-          <History size={14} />
-          Historique
-        </button>
-      )}
-    </div>
+          </>
+        )}
+        {summary.latest?.notBefore && latestStatus === 'PENDING' && (
+          <span className="subtle">
+            À partir du{' '}
+            {new Intl.DateTimeFormat('fr-LU', { timeZone: 'UTC' }).format(
+              new Date(summary.latest.notBefore),
+            )}
+          </span>
+        )}
+        {summary.latest && (
+          <button type="button" className="text-link" onClick={onHistory}>
+            <History size={14} />
+            Historique
+          </button>
+        )}
+      </div>
+    </details>
   );
 }
 type HistoryPage = { items: EmailHistoryItem[]; total: number; page: number; pageSize: number };

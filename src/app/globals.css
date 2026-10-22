@@ -1094,6 +1094,33 @@ tbody tr:hover {
 .status-dot.archived {
   background: #b3a4c0;
 }
+.email-tracking > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 5px;
+}
+.email-tracking > summary::-webkit-details-marker {
+  display: none;
+}
+.email-tracking > summary:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 4px;
+}
+.email-tracking-chevron {
+  flex-shrink: 0;
+}
+.email-tracking[open] > summary .email-tracking-chevron {
+  transform: rotate(180deg);
+}
+.email-tracking-details {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 10px;
+}
 .table-open {
   width: 25px;
   color: #7e7188;
