@@ -5,6 +5,7 @@ export type SessionRecord = {
   name: string;
   date: string;
   endDate?: string | null;
+  responseDeadline?: string | null;
   formLanguage?: 'fr' | 'de' | 'en' | 'auto';
   trainer: string;
   description: string;
@@ -53,6 +54,6 @@ export type ParticipantRecord = {
   lastName: string;
   email: string;
   submittedAt: string | null;
-  session: { name: string };
+  session: { name: string; id?: string; date?: string; endDate?: string | null; trainer?: string };
   emailSummary?: ParticipantEmailSummary;
 };

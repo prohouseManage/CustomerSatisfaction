@@ -8,7 +8,13 @@ type Overview = {
   nextScheduledAt: string;
   overdue: boolean;
   scheduler: { vercel: boolean; configured: boolean };
-  emails: { ready: boolean; automaticEnabled: boolean; counts: Record<string, number> };
+  emails: {
+    ready: boolean;
+    automaticEnabled: boolean;
+    counts: Record<string, number>;
+    deliveryCounts: Record<string, number>;
+    deliveryTrackingConfigured: boolean;
+  };
   odoo: { pending: number; failed: number; uncertain: number };
   powerAutomate: { configured: boolean; pending: number; failed: number };
 };
@@ -114,6 +120,14 @@ export default function AutomationMonitor({ demo }: { demo: boolean }) {
                 <p className="notice">
                   Envois bloqués : service e-mail ou adresse publique HTTPS à configurer.
                 </p>
+              )}
+              <p>
+                {data.emails.deliveryCounts.DELIVERED || 0} livré(s) au serveur destinataire ·{' '}
+                {data.emails.deliveryCounts.REJECTED || 0} rejeté(s) / non livré(s) ·{' '}
+                {data.emails.deliveryCounts.DEFERRED || 0} livraison(s) différée(s)
+              </p>
+              {!data.emails.deliveryTrackingConfigured && (
+                <p className="muted">Suivi de livraison Mailgun à configurer.</p>
               )}
               <p className="muted">
                 Calendrier automatique {data.emails.automaticEnabled ? 'activé' : 'désactivé'}. Les

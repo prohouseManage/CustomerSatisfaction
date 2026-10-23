@@ -11,7 +11,7 @@ export const GET = api(async (request) => {
       where,
       include: {
         participant: { select: { id: true, firstName: true, lastName: true, email: true } },
-        session: { select: { name: true } },
+        session: { select: { id: true, name: true, date: true, endDate: true, trainer: true } },
       },
       orderBy: { submittedAt: 'desc' },
       take: 100,

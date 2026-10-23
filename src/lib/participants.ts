@@ -14,6 +14,10 @@ export const emailHistorySelect = {
   sentAt: true,
   notBefore: true,
   lastError: true,
+  providerStatus: true,
+  providerUpdatedAt: true,
+  deliveredAt: true,
+  rejectedAt: true,
 } as const;
 export function emailHistoryItem(row: {
   id: string;
@@ -23,6 +27,10 @@ export function emailHistoryItem(row: {
   sentAt: Date | null;
   notBefore: Date | null;
   lastError: string | null;
+  providerStatus?: string | null;
+  providerUpdatedAt?: Date | null;
+  deliveredAt?: Date | null;
+  rejectedAt?: Date | null;
 }): EmailHistoryItem {
   return {
     id: row.id,
@@ -32,6 +40,10 @@ export function emailHistoryItem(row: {
     sentAt: row.sentAt?.toISOString() || null,
     notBefore: row.notBefore?.toISOString().slice(0, 10) || null,
     lastError: row.lastError,
+    providerStatus: row.providerStatus || null,
+    providerUpdatedAt: row.providerUpdatedAt?.toISOString() || null,
+    deliveredAt: row.deliveredAt?.toISOString() || null,
+    rejectedAt: row.rejectedAt?.toISOString() || null,
   };
 }
 export async function listParticipants(
@@ -49,15 +61,13 @@ export async function listParticipants(
         : {}),
     ...(q
       ? {
-          AND: q
-            .split(/\s+/)
-            .map((word) => ({
-              OR: [
-                { firstName: { contains: word, mode: 'insensitive' as const } },
-                { lastName: { contains: word, mode: 'insensitive' as const } },
-                { email: { contains: word, mode: 'insensitive' as const } },
-              ],
-            })),
+          AND: q.split(/\s+/).map((word) => ({
+            OR: [
+              { firstName: { contains: word, mode: 'insensitive' as const } },
+              { lastName: { contains: word, mode: 'insensitive' as const } },
+              { email: { contains: word, mode: 'insensitive' as const } },
+            ],
+          })),
         }
       : {}),
   };
@@ -72,7 +82,7 @@ export async function listParticipants(
         email: true,
         submittedAt: true,
         createdAt: true,
-        session: { select: { name: true } },
+        session: { select: { id: true, name: true, date: true, endDate: true, trainer: true } },
         emailDeliveries: {
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: 1,
@@ -88,7 +98,10 @@ export async function listParticipants(
   const confirmed = items.length
     ? await db.emailDelivery.groupBy({
         by: ['participantId'],
-        where: { participantId: { in: items.map((p) => p.id) }, status: 'SENT' },
+        where: {
+          participantId: { in: items.map((p) => p.id) },
+          OR: [{ status: 'SENT' }, { providerStatus: { not: null } }],
+        },
         _max: { sentAt: true },
         _count: true,
       })

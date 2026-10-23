@@ -15,14 +15,26 @@ import {
   type SavedEmailSchedule,
   type EmailReactivation,
 } from './email-policy';
-import { smtpConfiguration, sendSmtpEmail, EmailSendError, type OutgoingEmail } from './email-smtp';
+import {
+  smtpConfiguration,
+  smtpMessageId,
+  sendSmtpEmail,
+  EmailSendError,
+  type OutgoingEmail,
+} from './email-smtp';
+import { responsesOpen } from './response-window';
 
 export function emailServiceStatus() {
   const configured = !!smtpConfiguration();
   const publicLinkReady =
     new URL(baseUrl()).protocol === 'https:' &&
     !['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseUrl()).hostname);
-  return { configured, publicLinkReady, ready: configured && publicLinkReady };
+  return {
+    configured,
+    publicLinkReady,
+    ready: configured && publicLinkReady,
+    deliveryTrackingConfigured: Boolean(process.env.MAILGUN_WEBHOOK_SIGNING_KEY),
+  };
 }
 export async function getEmailPolicy(client: Prisma.TransactionClient = db): Promise<EmailPolicy> {
   const settings = await client.emailSettings.findUnique({ where: { id: 'email' } });
@@ -144,6 +156,11 @@ export async function emailOverview(sessionId: string) {
     where: { sessionId },
     _count: true,
   });
+  const providerCounts = await db.emailDelivery.groupBy({
+    by: ['providerStatus'],
+    where: { sessionId },
+    _count: true,
+  });
   const recent = await db.emailDelivery.findMany({
     where: { sessionId },
     orderBy: { createdAt: 'desc' },
@@ -154,6 +171,8 @@ export async function emailOverview(sessionId: string) {
       automaticKey: true,
       createdAt: true,
       sentAt: true,
+      providerStatus: true,
+      providerUpdatedAt: true,
       participant: { select: { firstName: true, lastName: true } },
     },
   });
@@ -164,7 +183,11 @@ export async function emailOverview(sessionId: string) {
     effective,
     dueDate: scheduledEmailDate(session.endDate || session.date, effective, schedule),
     suspended: Boolean(schedule?.suspended),
-    active: session.status === 'ACTIVE',
+    active: responsesOpen(session),
+    responseDeadline: session.responseDeadline,
+    deliveryCounts: Object.fromEntries(
+      providerCounts.filter((c) => c.providerStatus).map((c) => [c.providerStatus!, c._count]),
+    ),
     counts: Object.fromEntries(counts.map((c) => [c.status, c._count])),
     recent,
     eligible: await db.participant.count({ where: { sessionId, submittedAt: null } }),
@@ -183,8 +206,11 @@ export async function queueManualEmails(
   return db.$transaction(
     async (tx) => {
       const session = await lockSession(tx, sessionId);
-      if (session.status !== 'ACTIVE')
-        throw new ApiError(409, 'Activez la session avant d’envoyer les invitations.');
+      if (!responsesOpen(session))
+        throw new ApiError(
+          409,
+          'La collecte est fermée. Activez la session ou modifiez sa date limite avant l’envoi.',
+        );
       if (
         participantId &&
         !(await tx.participant.findFirst({ where: { id: participantId, sessionId } }))
@@ -234,6 +260,7 @@ export async function queueAutomaticEmails(now = new Date()) {
       JOIN "TrainingSession" s ON s.id=p."sessionId"
       LEFT JOIN "SessionEmailSchedule" e ON e."sessionId"=s.id
       WHERE s.status='ACTIVE' AND p."submittedAt" IS NULL AND COALESCE(e.mode,'INHERIT') <> 'OFF' AND NOT COALESCE(e.suspended,false)
+        AND (s."responseDeadline" IS NULL OR s."responseDeadline" >= ${luxembourgDate(now)}::date)
         AND (e."resumeOn" IS NULL OR e."resumeOn" <= ${luxembourgDate(now)}::date)
         AND COALESCE(s."endDate",s.date) + (CASE WHEN e.mode='CUSTOM' THEN e."delayDays" ELSE ${policy.delayDays} END)::int <= ${luxembourgDate(now)}::date
         AND NOT EXISTS (SELECT 1 FROM "EmailDelivery" d WHERE d."automaticKey"=p.id OR (d."participantId"=p.id AND d.status IN ('PENDING','SENDING','UNKNOWN')))
@@ -245,7 +272,7 @@ export async function queueAutomaticEmails(now = new Date()) {
           where: { id: participant.id },
           include: { session: { include: { emailSchedule: true } } },
         });
-        if (!current || current.submittedAt || current.session.status !== 'ACTIVE') continue;
+        if (!current || current.submittedAt || !responsesOpen(current.session, now)) continue;
         const effective = effectiveEmailPolicy(
           policy,
           current.session.emailSchedule as SavedEmailSchedule | null,
@@ -314,6 +341,7 @@ export async function deliverEmails(
     LEFT JOIN "SessionEmailSchedule" e ON e."sessionId"=s.id
     WHERE d.status='PENDING' AND (${sessionId || null}::text IS NULL OR d."sessionId"=${sessionId || null})
       AND s.status='ACTIVE' AND (d."notBefore" IS NULL OR d."notBefore" <= ${luxembourgDate(now)}::date)
+      AND (s."responseDeadline" IS NULL OR s."responseDeadline" >= ${luxembourgDate(now)}::date)
       AND (d."automaticKey" IS NULL OR (${policy.enabled} AND NOT COALESCE(e.suspended,false) AND COALESCE(e.mode,'INHERIT')<>'OFF' AND (e."resumeOn" IS NULL OR e."resumeOn"<=${luxembourgDate(now)}::date) AND COALESCE(s."endDate",s.date)+(CASE WHEN e.mode='CUSTOM' THEN e."delayDays" ELSE ${policy.delayDays} END)::int <= ${luxembourgDate(now)}::date))
     ORDER BY d."createdAt",d.id LIMIT ${budget?.limit || 100}`;
   let sent = 0,
@@ -328,6 +356,7 @@ export async function deliverEmails(
         include: { participant: true, session: { include: { emailSchedule: true } } },
       });
       if (!current || current.status !== 'PENDING') return null;
+      if (!responsesOpen(current.session, now)) return null;
       if (current.participant.submittedAt || current.session.status !== 'ACTIVE') {
         await tx.emailDelivery.update({
           where: { id: delivery.id },
@@ -369,10 +398,15 @@ export async function deliverEmails(
       });
       await tx.emailDelivery.update({
         where: { id: delivery.id },
-        data: { status: 'SENDING', lockedUntil: new Date(Date.now() + 120000) },
+        data: {
+          status: 'SENDING',
+          lockedUntil: new Date(Date.now() + 120000),
+          providerMessageId: smtpMessageId(delivery.id),
+        },
       });
       return {
         deliveryId: delivery.id,
+        messageId: smtpMessageId(delivery.id),
         sessionRevision: current.session.integrationRevision,
         eventType: 'satisfaction.email',
         sessionId: current.sessionId,
@@ -396,8 +430,9 @@ export async function deliverEmails(
         participant: { submittedAt: null },
         session: { status: 'ACTIVE', integrationRevision: claimed.sessionRevision },
       },
+      include: { session: { select: { status: true, responseDeadline: true } } },
     });
-    if (!live) {
+    if (!live || !responsesOpen(live.session)) {
       await db.$transaction(async (tx) => {
         const session = await lockSession(tx, delivery.sessionId);
         const current = await tx.emailDelivery.findUnique({

@@ -4,6 +4,7 @@ import { ChevronDown, History } from 'lucide-react';
 import Dialog from './dialog';
 import {
   emailStatusLabels,
+  deliveryLabel,
   emailDate,
   type EmailHistoryItem,
   type ParticipantEmailSummary,
@@ -11,9 +12,9 @@ import {
 import type { ParticipantRecord } from '@/lib/types';
 
 function statusClass(status: string) {
-  return status === 'SENT'
+  return ['SENT', 'ACCEPTED', 'DELIVERED'].includes(status)
     ? 'active'
-    : status === 'FAILED' || status === 'UNKNOWN'
+    : ['FAILED', 'UNKNOWN', 'REJECTED'].includes(status)
       ? 'archived'
       : 'draft';
 }
@@ -27,13 +28,15 @@ export function ParticipantEmailCell({
   if (!summary) return <span className="subtle">Suivi indisponible</span>;
   if (!summary.latest && !summary.sentCount) return <span className="subtle">Non envoyé</span>;
   const latestStatus = summary.latest?.status;
-  const status = latestStatus || 'SENT';
+  const status = summary.latest?.providerStatus || latestStatus || 'SENT';
   const label =
     status === 'SENT'
-      ? 'Envoyé'
+      ? 'Accepté par Mailgun'
       : summary.sentCount > 0 && status === 'PENDING'
         ? 'Rappel en attente'
-        : emailStatusLabels[status] || status;
+        : summary.latest
+          ? deliveryLabel(summary.latest)
+          : emailStatusLabels[status] || status;
   return (
     <details className="email-tracking">
       <summary title="Afficher ou masquer les détails du suivi e-mail">
@@ -50,7 +53,7 @@ export function ParticipantEmailCell({
             <span className="subtle">{emailDate(summary.lastSentAt)}</span>
             <span
               className="subtle"
-              title="Le serveur SMTP Mailgun a accepté l’envoi. La réception et la lecture ne sont pas confirmées."
+              title="Ce compteur indique les envois acceptés. Consultez le statut de livraison dans l’historique."
             >
               {summary.sentCount} envoi(s) confirmé(s)
             </span>
@@ -69,6 +72,11 @@ export function ParticipantEmailCell({
             <History size={14} />
             Historique
           </button>
+        )}
+        {summary.latest?.providerUpdatedAt && (
+          <span className="subtle">
+            Statut Mailgun : {emailDate(summary.latest.providerUpdatedAt)}
+          </span>
         )}
       </div>
     </details>
@@ -117,8 +125,9 @@ export default function EmailHistoryDialog({
           · {participant.email}
         </p>
         <p className="muted">
-          Dates affichées en heure de Luxembourg. Un envoi confirmé signifie que Mailgun a accepté
-          le message ; la réception et la lecture ne sont pas confirmées.
+          Dates en heure de Luxembourg. « Accepté » confirme la prise en charge par Mailgun. « Livré
+          » confirme l’acceptation par le serveur destinataire, sans garantir la lecture ni le
+          placement dans la boîte de réception. Sans événement Mailgun, la livraison reste inconnue.
         </p>
         {loading ? (
           <p role="status">Chargement de l’historique…</p>
@@ -135,6 +144,7 @@ export default function EmailHistoryDialog({
                   <th>TYPE</th>
                   <th>STATUT</th>
                   <th>ENVOYÉ LE</th>
+                  <th>LIVRAISON</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,9 +153,9 @@ export default function EmailHistoryDialog({
                     <td>{emailDate(item.createdAt)}</td>
                     <td>{item.kind === 'AUTOMATIC' ? 'Automatique' : 'Manuel'}</td>
                     <td>
-                      <span className={`status ${statusClass(item.status)}`}>
+                      <span className={`status ${statusClass(item.providerStatus || item.status)}`}>
                         <i />
-                        {emailStatusLabels[item.status] || item.status}
+                        {deliveryLabel(item)}
                       </span>
                       {item.lastError && (
                         <p style={{ marginTop: 6 }} className="muted">
@@ -162,6 +172,9 @@ export default function EmailHistoryDialog({
                       )}
                     </td>
                     <td>{item.sentAt ? emailDate(item.sentAt) : '—'}</td>
+                    <td>
+                      {item.providerUpdatedAt ? emailDate(item.providerUpdatedAt) : 'Non confirmée'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

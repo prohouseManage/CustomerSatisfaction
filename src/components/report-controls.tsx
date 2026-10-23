@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ChevronRight, FileSpreadsheet, FileText, RotateCcw } from 'lucide-react';
 import { matchesReportSession, type ReportFilters } from '@/lib/report-filters';
 import { sessionDateRange } from '@/lib/session-dates';
+import { sessionLabel } from '@/lib/session-identity';
 import type { SessionRecord } from '@/lib/types';
 
 export function ReportControls({
@@ -107,7 +108,7 @@ export function ReportControls({
             <option value="">Toutes les sessions de la période</option>
             {matching.map((session) => (
               <option key={session.id} value={session.id}>
-                {session.id} · {session.name} · {sessionDateRange(session.date, session.endDate)}
+                {sessionLabel(session)}
               </option>
             ))}
           </select>
@@ -181,6 +182,7 @@ export function ReportSessionList({
                 <th>ID SESSION</th>
                 <th>FORMATION</th>
                 <th>DATES</th>
+                <th>FORMATEUR</th>
                 <th>PARTICIPANTS</th>
                 <th>RÉPONSES</th>
                 <th>
@@ -196,6 +198,7 @@ export function ReportSessionList({
                   </td>
                   <td>{session.name}</td>
                   <td>{sessionDateRange(session.date, session.endDate)}</td>
+                  <td>{session.trainer}</td>
                   <td>{session._count.participants}</td>
                   <td>{session._count.responses}</td>
                   <td>

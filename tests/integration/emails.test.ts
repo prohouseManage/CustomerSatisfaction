@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import EmbeddedPostgres from 'embedded-postgres';
@@ -595,6 +595,197 @@ test(
               assert.equal(sends, 205);
             } finally {
               await db.trainingSession.delete({ where: { id: target.id } });
+            }
+          },
+        );
+        await t.test(
+          'date limite : invitations manuelles et automatiques bloquées, reprise après prolongation',
+          async () => {
+            const target = await db.trainingSession.create({
+              data: {
+                id: 'EMAIL-DEADLINE',
+                name: 'Formation homonyme',
+                trainer: 'Test',
+                date: new Date('2020-01-01'),
+                status: 'ACTIVE',
+                responseDeadline: new Date('2000-01-01'),
+              },
+            });
+            const token = generateToken();
+            const person = await db.participant.create({
+              data: {
+                sessionId: target.id,
+                firstName: 'Test',
+                lastName: 'Deadline',
+                email: 'deadline@example.org',
+                tokenHash: hashToken(token),
+                tokenEncrypted: encryptToken(token),
+              },
+            });
+            try {
+              await assert.rejects(queueManualEmails(target.id, person.id, 'test'), {
+                status: 409,
+              });
+              await queueAutomaticEmails();
+              assert.equal(await db.emailDelivery.count({ where: { sessionId: target.id } }), 0);
+              const waiting = await db.emailDelivery.create({
+                data: { sessionId: target.id, participantId: person.id },
+              });
+              let sent = 0;
+              await deliverEmails(target.id, async () => {
+                sent++;
+              });
+              assert.equal(sent, 0);
+              assert.equal((await emailOverview(target.id)).active, false);
+              await db.trainingSession.update({
+                where: { id: target.id },
+                data: { responseDeadline: null },
+              });
+              await deliverEmails(target.id, async () => {
+                sent++;
+              });
+              assert.equal(sent, 1);
+              const recorded = await db.emailDelivery.findUniqueOrThrow({
+                where: { id: waiting.id },
+              });
+              assert.equal(recorded.providerMessageId, `${recorded.id}@example.org`);
+              assert.equal(recorded.providerStatus, null);
+            } finally {
+              await db.trainingSession.delete({ where: { id: target.id } });
+            }
+          },
+        );
+        await t.test(
+          'Mailgun : signature, concurrence, ordre des événements, refus et purge en cascade sans SMTP',
+          async () => {
+            const { receiveMailgunEvent } = await import('../../src/lib/mailgun-events');
+            const target = await db.trainingSession.create({
+              data: {
+                id: 'MAILGUN-TRACKING',
+                name: 'Test suivi',
+                trainer: 'Test',
+                date: new Date(),
+                status: 'ACTIVE',
+              },
+            });
+            const token = generateToken();
+            const person = await db.participant.create({
+              data: {
+                sessionId: target.id,
+                firstName: 'Test',
+                lastName: 'Mailgun',
+                email: 'tracking@example.org',
+                tokenHash: hashToken(token),
+                tokenEncrypted: encryptToken(token),
+              },
+            });
+            const mail = await db.emailDelivery.create({
+              data: {
+                sessionId: target.id,
+                participantId: person.id,
+                status: 'SENDING',
+                providerMessageId: 'tracking@example.org',
+              },
+            });
+            const key = randomBytes(32).toString('hex');
+            process.env.MAILGUN_WEBHOOK_SIGNING_KEY = key;
+            const now = new Date();
+            const payload = (event: string, offset = 0, extra: Record<string, unknown> = {}) => {
+              const timestamp = String(Math.floor(now.getTime() / 1000));
+              const signatureToken = randomBytes(25).toString('hex');
+              return {
+                signature: {
+                  timestamp,
+                  token: signatureToken,
+                  signature: createHmac('sha256', key)
+                    .update(timestamp + signatureToken)
+                    .digest('hex'),
+                },
+                'event-data': {
+                  id: randomUUID(),
+                  event,
+                  timestamp: now.getTime() / 1000 + offset,
+                  recipient: person.email,
+                  message: { headers: { 'message-id': '<tracking@example.org>' } },
+                  ...extra,
+                },
+              };
+            };
+            try {
+              const invalid = payload('delivered');
+              invalid.signature.signature = '0'.repeat(64);
+              await assert.rejects(receiveMailgunEvent(invalid, now), { status: 401 });
+              assert.equal(
+                await db.emailDeliveryEvent.count({ where: { deliveryId: mail.id } }),
+                0,
+              );
+              const mismatch = payload('delivered', 0, { recipient: 'other@example.org' });
+              assert.equal(
+                ((await receiveMailgunEvent(mismatch, now)) as { ignored?: boolean }).ignored,
+                true,
+              );
+              await receiveMailgunEvent(payload('accepted', -10), now);
+              const pending = await db.emailDelivery.findUniqueOrThrow({ where: { id: mail.id } });
+              assert.equal(pending.status, 'SENT');
+              assert.equal(pending.providerStatus, 'ACCEPTED');
+              await receiveMailgunEvent(payload('failed', -5, { severity: 'temporary' }), now);
+              assert.equal(
+                (await db.emailDelivery.findUniqueOrThrow({ where: { id: mail.id } }))
+                  .providerStatus,
+                'DEFERRED',
+              );
+              const delivered = payload('delivered');
+              const concurrent = await Promise.all([
+                receiveMailgunEvent(delivered, now),
+                receiveMailgunEvent(delivered, now),
+              ]);
+              assert.equal(concurrent.filter((v) => 'duplicate' in v).length, 1);
+              await receiveMailgunEvent(payload('accepted', 1), now);
+              await receiveMailgunEvent(payload('failed', -20, { severity: 'permanent' }), now);
+              const final = await db.emailDelivery.findUniqueOrThrow({ where: { id: mail.id } });
+              assert.equal(final.providerStatus, 'DELIVERED');
+              assert.ok(final.deliveredAt);
+              const summary = (await listParticipants(target.id, 1)).items[0];
+              assert.equal(summary.session.trainer, 'Test');
+              assert.equal(summary.emailSummary.latest?.providerStatus, 'DELIVERED');
+              assert.equal((await emailOverview(target.id)).deliveryCounts.DELIVERED, 1);
+              const rejected = await db.emailDelivery.create({
+                data: {
+                  sessionId: target.id,
+                  participantId: person.id,
+                  status: 'UNKNOWN',
+                  providerMessageId: 'rejected@example.org',
+                },
+              });
+              const failed = payload('failed', 0, {
+                severity: 'permanent',
+                message: { headers: { 'message-id': 'rejected@example.org' } },
+              });
+              await receiveMailgunEvent(failed, now);
+              const rejection = await db.emailDelivery.findUniqueOrThrow({
+                where: { id: rejected.id },
+              });
+              assert.equal(rejection.providerStatus, 'REJECTED');
+              assert.ok(rejection.rejectedAt);
+              assert.equal(rejection.status, 'SENT');
+              const stale = payload('delivered');
+              stale.signature.timestamp = String(Math.floor(now.getTime() / 1000) - 86401);
+              stale.signature.signature = createHmac('sha256', key)
+                .update(stale.signature.timestamp + stale.signature.token)
+                .digest('hex');
+              await assert.rejects(receiveMailgunEvent(stale, now), { status: 401 });
+              const history = JSON.stringify(
+                await db.emailDeliveryEvent.findMany({ where: { deliveryId: mail.id } }),
+              );
+              assert.equal(history.includes(person.email), false);
+              assert.equal(history.includes('signature'), false);
+            } finally {
+              await db.trainingSession.delete({ where: { id: target.id } });
+              assert.equal(
+                await db.emailDeliveryEvent.count({ where: { deliveryId: mail.id } }),
+                0,
+              );
+              delete process.env.MAILGUN_WEBHOOK_SIGNING_KEY;
             }
           },
         );

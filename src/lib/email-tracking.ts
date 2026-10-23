@@ -6,6 +6,10 @@ export type EmailHistoryItem = {
   sentAt: string | null;
   notBefore: string | null;
   lastError: string | null;
+  providerStatus?: string | null;
+  providerUpdatedAt?: string | null;
+  deliveredAt?: string | null;
+  rejectedAt?: string | null;
 };
 export type ParticipantEmailSummary = {
   sentCount: number;
@@ -15,12 +19,23 @@ export type ParticipantEmailSummary = {
 export const emailStatusLabels: Record<string, string> = {
   PENDING: 'En attente',
   SENDING: 'En cours d’envoi',
-  SENT: 'Envoi confirmé par Mailgun',
+  SENT: 'Accepté par Mailgun',
   FAILED: 'Échec avant envoi',
   UNKNOWN: 'À vérifier',
   PAUSED: 'Suspendu',
   CANCELLED: 'Annulé',
 };
+export const deliveryStatusLabels: Record<string, string> = {
+  ACCEPTED: 'Accepté par Mailgun',
+  DELIVERED: 'Livré au serveur destinataire',
+  DEFERRED: 'Livraison différée',
+  REJECTED: 'Rejeté / non livré',
+};
+export function deliveryLabel(item: { status: string; providerStatus?: string | null }) {
+  return (
+    deliveryStatusLabels[item.providerStatus || ''] || emailStatusLabels[item.status] || item.status
+  );
+}
 export function emailDate(value: string | null | undefined) {
   if (!value) return 'Date non disponible';
   return new Intl.DateTimeFormat('fr-LU', {

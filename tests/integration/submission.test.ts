@@ -129,6 +129,66 @@ test(
           );
         });
         await t.test(
+          'la clôture refuse une soumission tardive sans archiver ni consommer le lien',
+          async () => {
+            const target = await db.trainingSession.create({
+              data: {
+                id: 'DEADLINE-TEST',
+                name: session.name,
+                trainer: 'Autre formateur',
+                date: session.date,
+                status: 'ACTIVE',
+                responseDeadline: new Date('2000-01-01'),
+                questions: {
+                  create: [{ label: 'Votre satisfaction', type: 'RATING_4', position: 0 }],
+                },
+              },
+              include: { questions: true },
+            });
+            const personalToken = generateToken();
+            const person = await db.participant.create({
+              data: {
+                sessionId: target.id,
+                firstName: 'Test',
+                lastName: 'Cloture',
+                email: 'deadline@example.org',
+                tokenHash: hashToken(personalToken),
+                tokenEncrypted: encryptToken(personalToken),
+              },
+            });
+            const lateInput = {
+              sessionId: target.id,
+              token: personalToken,
+              answers: [{ questionId: target.questions[0].id, value: 4 }],
+            };
+            try {
+              await assert.rejects(
+                submitResponse(lateInput, 'test'),
+                (e: unknown) => e instanceof ApiError && e.status === 410,
+              );
+              assert.equal(
+                (await db.participant.findUniqueOrThrow({ where: { id: person.id } })).submittedAt,
+                null,
+              );
+              assert.equal(
+                (await db.trainingSession.findUniqueOrThrow({ where: { id: target.id } })).status,
+                'ACTIVE',
+              );
+              await db.trainingSession.update({
+                where: { id: target.id },
+                data: { responseDeadline: null },
+              });
+              await submitResponse(lateInput, 'test');
+              assert.equal(await db.response.count({ where: { sessionId: target.id } }), 1);
+            } finally {
+              await db.webhookDelivery.deleteMany({
+                where: { payload: { path: ['sessionId'], equals: target.id } },
+              });
+              await db.trainingSession.delete({ where: { id: target.id } });
+            }
+          },
+        );
+        await t.test(
           'les retours ultérieurs restent refusés et l’événement est complet',
           async () => {
             await assert.rejects(
@@ -429,7 +489,7 @@ test(
           const tables = await db.$queryRaw<
             { relname: string; relrowsecurity: boolean }[]
           >`SELECT relname,relrowsecurity FROM pg_class JOIN pg_namespace n ON n.oid=relnamespace WHERE n.nspname='public' AND relkind='r'`;
-          assert.equal(tables.length, 17);
+          assert.equal(tables.length, 18);
           assert.ok(tables.every((t) => t.relrowsecurity));
         });
         await t.test(

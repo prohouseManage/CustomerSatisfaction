@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 import { PrismaClient } from '@prisma/client';
 import EmbeddedPostgres from 'embedded-postgres';
-import { randomBytes, randomUUID, createHash } from 'node:crypto';
+import { randomBytes, randomUUID, createHash, createHmac } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
@@ -70,6 +70,7 @@ async function main() {
     }
     db = new PrismaClient({ datasourceUrl: connection });
     const loginPassword = randomBytes(18).toString('hex');
+    const mailgunSigningKey = randomBytes(32).toString('hex');
     await db.admin.create({
       data: {
         email: 'admin@example.com',
@@ -96,6 +97,7 @@ async function main() {
           SMTP_USER: '',
           SMTP_PASSWORD: '',
           EMAIL_FROM: '',
+          MAILGUN_WEBHOOK_SIGNING_KEY: mailgunSigningKey,
           CRON_SECRET: randomBytes(32).toString('hex'),
           ENABLE_DEMO: 'true',
         },
@@ -369,6 +371,7 @@ async function main() {
     assert.equal(await dialog.locator('input[name="endDate"]').inputValue(), '2026-12-11');
     await dialog.locator('input[name="endDate"]').fill('2026-12-14');
     await dialog.getByLabel('Formateur', { exact: true }).fill('Jean Dupont');
+    await dialog.getByLabel('Date limite de réponse', { exact: true }).fill('2099-12-31');
     await dialog.screenshot({ path: 'test-results/session-dates-creation.png' });
     await dialog.locator('select[name="status"]').selectOption('ACTIVE');
     await dialog.getByLabel('Lien du questionnaire Odoo', { exact: true }).fill(testOdooUrl);
@@ -388,6 +391,7 @@ async function main() {
     assert.equal(JSON.stringify(publicAdminSession).includes(testOdooToken), false);
     assert.equal(publicAdminSession.endDate.slice(0, 10), '2026-12-14');
     assert.equal(publicAdminSession.formLanguage, 'auto');
+    assert.equal(publicAdminSession.responseDeadline.slice(0, 10), '2099-12-31');
     const emailScheduleStatus = await (
       await page.request.get(`${url}/api/sessions/E2E-2026-001/emails`)
     ).json();
@@ -463,6 +467,7 @@ async function main() {
     assert.equal(listBody.total, 2);
     assert.ok(!JSON.stringify(listBody).includes('token'));
     const session = await (await page.request.get(`${url}/api/sessions/E2E-2026-001`)).json();
+    session.responseDeadline = session.responseDeadline?.slice(0, 10) || null;
     const edit = await page.request.patch(`${url}/api/sessions/E2E-2026-001`, {
       headers: { Origin: url },
       data: {
@@ -648,6 +653,7 @@ async function main() {
       ...currentLanguageSession,
       date: currentLanguageSession.date.slice(0, 10),
       endDate: currentLanguageSession.endDate.slice(0, 10),
+      responseDeadline: currentLanguageSession.responseDeadline?.slice(0, 10) || null,
     };
     assert.equal(
       (
@@ -706,6 +712,56 @@ async function main() {
     );
     await form.goto(personalLink);
     await form.getByRole('heading', { name: 'Et si on faisait encore mieux ?' }).waitFor();
+    // A form opened before closure must also be refused on submission.
+    for (let i = 0; i < 11; i++)
+      await form
+        .locator('.star-rating')
+        .nth(i)
+        .getByRole('radio', { name: '4 étoiles sur 4', exact: true })
+        .check();
+    const deadlineBody = {
+      ...languageBody,
+      date: '2026-12-11',
+      endDate: '2026-12-14',
+      responseDeadline: '2000-01-01',
+    };
+    assert.equal(
+      (
+        await page.request.patch(`${url}/api/sessions/${session.id}`, {
+          headers: { Origin: url },
+          data: deadlineBody,
+        })
+      ).status(),
+      200,
+    );
+    await form.getByRole('button', { name: 'Envoyer mon avis', exact: true }).click();
+    await form.getByRole('heading', { name: 'Ce questionnaire est fermé.', exact: true }).waitFor();
+    assert.equal(await form.locator('form').count(), 0);
+    const closedPage = await visitor.newPage();
+    await closedPage.goto(personalLink);
+    await closedPage
+      .getByRole('heading', { name: 'Ce questionnaire est fermé.', exact: true })
+      .waitFor();
+    await closedPage.screenshot({ path: 'test-results/deadline-closed-mobile.png' });
+    await closedPage.close();
+    assert.equal(await db.response.count(), 0);
+    assert.equal(
+      (await db.trainingSession.findUniqueOrThrow({ where: { id: session.id } })).status,
+      'ACTIVE',
+    );
+    assert.equal(
+      (
+        await page.request.patch(`${url}/api/sessions/${session.id}`, {
+          headers: { Origin: url },
+          data: { ...deadlineBody, responseDeadline: null },
+        })
+      ).status(),
+      200,
+    );
+    await form.goto(personalLink);
+    await form
+      .getByRole('heading', { name: 'Et si on faisait encore mieux ?', exact: true })
+      .waitFor();
     const stale = await visitor.newPage();
     await stale.goto(personalLink);
     assert.equal(
@@ -947,6 +1003,70 @@ async function main() {
     const waitingParticipant = await db.participant.findFirstOrThrow({
       where: { sessionId: session.id, submittedAt: null },
     });
+    // Signed delivery events use the real API with the disposable database; no SMTP call.
+    const trackedMail = await db.emailDelivery.create({
+      data: {
+        sessionId: session.id,
+        participantId: waitingParticipant.id,
+        status: 'SENT',
+        sentAt: new Date(),
+        providerMessageId: 'e2e-tracking@example.org',
+      },
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000)),
+      signatureToken = randomBytes(25).toString('hex');
+    const deliveryEvent = {
+      signature: {
+        timestamp,
+        token: signatureToken,
+        signature: createHmac('sha256', mailgunSigningKey)
+          .update(timestamp + signatureToken)
+          .digest('hex'),
+      },
+      'event-data': {
+        id: randomUUID(),
+        event: 'delivered',
+        timestamp: Number(timestamp),
+        recipient: waitingParticipant.email,
+        message: { headers: { 'message-id': '<e2e-tracking@example.org>' } },
+      },
+    };
+    assert.equal(
+      (await visitor.request.post(`${url}/api/webhook/mailgun`, { data: deliveryEvent })).status(),
+      200,
+    );
+    const forged = {
+      ...deliveryEvent,
+      signature: { ...deliveryEvent.signature, signature: '0'.repeat(64) },
+    };
+    assert.equal(
+      (await visitor.request.post(`${url}/api/webhook/mailgun`, { data: forged })).status(),
+      401,
+    );
+    // Compile this dev-only route before opening the dialog: Next Fast Refresh can
+    // otherwise reload the page while the first history request is in flight.
+    assert.equal(
+      (await page.request.get(`${url}/api/participants/${waitingParticipant.id}/emails`)).status(),
+      200,
+    );
+    await page.reload();
+    const trackedRow = page.locator('tbody tr').filter({ hasText: waitingParticipant.email });
+    await trackedRow.getByText('Livré au serveur destinataire', { exact: true }).waitFor();
+    await trackedRow.locator('.email-tracking summary').click();
+    await trackedRow.getByRole('button', { name: 'Historique', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByText('Livré au serveur destinataire', { exact: true })
+      .waitFor();
+    await page
+      .getByRole('dialog')
+      .screenshot({ path: 'test-results/mailgun-delivery-history.png' });
+    await page
+      .getByRole('dialog')
+      .locator('.dialog-footer')
+      .getByRole('button', { name: 'Fermer', exact: true })
+      .click();
+    await db.emailDelivery.delete({ where: { id: trackedMail.id } });
     const queuedEmail = await db.emailDelivery.create({
       data: {
         sessionId: session.id,

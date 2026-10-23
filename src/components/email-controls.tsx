@@ -5,7 +5,7 @@ import Dialog from './dialog';
 import EmailReactivationDialog from './email-reactivation';
 import { defaultEmailPolicy, type EmailPolicy, type EmailSchedule } from '@/lib/email-policy';
 import type { ParticipantRecord } from '@/lib/types';
-import { emailDate, emailStatusLabels } from '@/lib/email-tracking';
+import { emailDate, deliveryLabel } from '@/lib/email-tracking';
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -13,7 +13,12 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(result.error || 'Service d’e-mail indisponible.');
   return result;
 }
-type Service = { configured: boolean; publicLinkReady: boolean; ready: boolean };
+type Service = {
+  configured: boolean;
+  publicLinkReady: boolean;
+  ready: boolean;
+  deliveryTrackingConfigured?: boolean;
+};
 function ServiceNotice({ service }: { service: Service }) {
   if (!service.configured)
     return (
@@ -31,7 +36,13 @@ function ServiceNotice({ service }: { service: Service }) {
     );
   return (
     <p className="muted">
-      Envoi via Mailgun SMTP. Les messages acceptés par Mailgun restent soumis à sa délivrabilité.
+      Envoi via Mailgun SMTP.{' '}
+      {service.deliveryTrackingConfigured
+        ? 'Le suivi de livraison est préparé. Les statuts sont mis à jour à réception des événements Mailgun.'
+        : 'Suivi de livraison non configuré : seuls les envois acceptés par Mailgun sont confirmés.'}{' '}
+      <a href="/docs#livraison-email" className="text-link">
+        Configurer le suivi de livraison
+      </a>
     </p>
   );
 }
@@ -329,9 +340,11 @@ type Overview = Service & {
   suspended: boolean;
   eligible: number;
   counts: Record<string, number>;
+  deliveryCounts: Record<string, number>;
   recent: {
     id: string;
     status: string;
+    providerStatus: string | null;
     automaticKey: string | null;
     sentAt: string | null;
     createdAt: string;
@@ -394,6 +407,11 @@ export function SessionEmailPanel({
             échec(s) avant envoi · {overview.counts.UNKNOWN || 0} à vérifier ·{' '}
             {overview.counts.PAUSED || 0} suspendu(s)
           </p>
+          <p>
+            {overview.deliveryCounts.DELIVERED || 0} livré(s) au serveur destinataire ·{' '}
+            {overview.deliveryCounts.REJECTED || 0} rejeté(s) / non livré(s) ·{' '}
+            {overview.deliveryCounts.DEFERRED || 0} livraison(s) différée(s)
+          </p>
           <ServiceNotice service={overview} />
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
             <button
@@ -424,8 +442,7 @@ export function SessionEmailPanel({
                 {overview.recent.map((d) => (
                   <li key={d.id}>
                     {d.participant.firstName} {d.participant.lastName} ·{' '}
-                    {d.automaticKey ? 'Automatique' : 'Manuel'} ·{' '}
-                    {emailStatusLabels[d.status] || d.status} ·{' '}
+                    {d.automaticKey ? 'Automatique' : 'Manuel'} · {deliveryLabel(d)} ·{' '}
                     {d.sentAt
                       ? `Envoyé le ${emailDate(d.sentAt)}`
                       : `Préparé le ${emailDate(d.createdAt)}`}

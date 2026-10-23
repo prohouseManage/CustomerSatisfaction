@@ -62,6 +62,53 @@ export const openapi = {
     { name: 'Intégrations' },
   ],
   paths: {
+    '/api/webhook/mailgun': {
+      post: {
+        tags: ['Intégrations'],
+        summary: 'Recevoir les événements de livraison Mailgun signés',
+        description:
+          'Authentification par HMAC-SHA256(timestamp + token), clé MAILGUN_WEBHOOK_SIGNING_KEY. JSON Mailgun avec signature et event-data. Événements accepted, delivered, temporary_fail/permanent_fail ou failed avec severity. Déduplication persistante par message-id et id événement, horodatage de signature toléré pendant 24 h. Les événements inconnus ou concernant des messages absents sont acquittés sans modification. Aucun e-mail envoyé par cet endpoint.',
+        security: [],
+        requestBody: body({
+          type: 'object',
+          required: ['signature', 'event-data'],
+          properties: {
+            signature: {
+              type: 'object',
+              required: ['timestamp', 'token', 'signature'],
+              properties: {
+                timestamp: { type: 'string' },
+                token: { type: 'string', minLength: 50, maxLength: 50 },
+                signature: { type: 'string', pattern: '^[a-fA-F0-9]{64}$' },
+              },
+            },
+            'event-data': {
+              type: 'object',
+              required: ['id', 'event', 'timestamp', 'recipient', 'message'],
+              properties: {
+                id: { type: 'string' },
+                event: { type: 'string' },
+                severity: { type: 'string' },
+                timestamp: { type: 'number' },
+                recipient: { type: 'string', format: 'email' },
+                message: {
+                  type: 'object',
+                  properties: {
+                    headers: { type: 'object', properties: { 'message-id': { type: 'string' } } },
+                  },
+                },
+              },
+            },
+          },
+        }),
+        responses: {
+          200: ok(),
+          ...errors,
+          413: { description: 'Corps supérieur à 64 Ko' },
+          415: { description: 'JSON requis' },
+        },
+      },
+    },
     '/api/collaboration': {
       get: {
         tags: ['Collaboration'],
@@ -1102,6 +1149,13 @@ export const openapi = {
               'Langue initiale du questionnaire. auto utilise la préférence principale Accept-Language : fr/de/en ; autres langues ou préférence absente = anglais. Un choix explicite ?lang=fr|de|en du participant est prioritaire. Omission en modification : réglage conservé.',
           },
           trainer: { type: 'string', minLength: 2, maxLength: 150 },
+          responseDeadline: {
+            type: 'string',
+            format: 'date',
+            nullable: true,
+            description:
+              'Date limite incluse, fin de journée Europe/Luxembourg. Omission en PATCH : conserver ; null : retirer. La session reste active et ses résultats accessibles. Après échéance, formulaire et soumissions sont fermés et les invitations sont suspendues. Prolonger ou retirer la date rouvre la collecte.',
+          },
           description: { type: 'string', maxLength: 3000 },
           status: { type: 'string', enum: ['DRAFT', 'ACTIVE', 'ARCHIVED'], default: 'DRAFT' },
           questions: { type: 'array', minItems: 1, maxItems: 50, items: ref('QuestionInput') },
@@ -1185,6 +1239,16 @@ export const openapi = {
           sentAt: { type: 'string', format: 'date-time', nullable: true },
           notBefore: { type: 'string', format: 'date', nullable: true },
           lastError: { type: 'string', nullable: true },
+          providerStatus: {
+            type: 'string',
+            nullable: true,
+            enum: ['ACCEPTED', 'DELIVERED', 'DEFERRED', 'REJECTED'],
+            description:
+              'État confirmé par webhook Mailgun. DELIVERED confirme le serveur destinataire, pas la lecture.',
+          },
+          providerUpdatedAt: { type: 'string', format: 'date-time', nullable: true },
+          deliveredAt: { type: 'string', format: 'date-time', nullable: true },
+          rejectedAt: { type: 'string', format: 'date-time', nullable: true },
         },
       },
       Participant: {
@@ -1204,7 +1268,16 @@ export const openapi = {
               latest: { allOf: [ref('EmailHistoryItem')], nullable: true },
             },
           },
-          session: { type: 'object', properties: { name: { type: 'string' } } },
+          session: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              date: { type: 'string', format: 'date-time' },
+              endDate: { type: 'string', format: 'date-time', nullable: true },
+              trainer: { type: 'string' },
+            },
+          },
         },
       },
       Answer: {

@@ -7,6 +7,7 @@ import { validateAnswers, type Answer } from './validation';
 import { responseIntegrationPayload } from './power-automate';
 import { queueOdoo } from './odoo';
 import { getOdooConfig } from './odoo-config';
+import { responsesOpen } from './response-window';
 export async function submitResponse(
   input: { sessionId: string; token: string; answers: Answer[]; language?: 'fr' | 'de' | 'en' },
   ipHash: string,
@@ -20,7 +21,7 @@ export async function submitResponse(
       if (!participant || participant.sessionId !== input.sessionId)
         throw new ApiError(404, 'Lien invalide.');
       if (participant.submittedAt) throw new ApiError(409, 'Ce questionnaire a déjà été complété.');
-      if (session.status !== 'ACTIVE')
+      if (!responsesOpen(session))
         throw new ApiError(410, 'Ce questionnaire n’est pas ouvert aux réponses.');
       if (
         input.answers.some(

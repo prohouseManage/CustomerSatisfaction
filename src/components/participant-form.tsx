@@ -28,6 +28,7 @@ export type FormDataView = {
   trainer: string;
   date: string;
   endDate?: string | null;
+  responseDeadline?: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -54,7 +55,8 @@ export default function ParticipantForm({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [done, setDone] = useState(false),
-    [already, setAlready] = useState(false);
+    [already, setAlready] = useState(false),
+    [closed, setClosed] = useState(false);
   const complete = data.questions.filter(
     (q) =>
       answers[q.id] !== undefined &&
@@ -73,6 +75,7 @@ export default function ParticipantForm({
     );
   }
   if (already) return <ParticipantStatus kind="completed" initialLanguage={language} />;
+  if (closed) return <ParticipantStatus kind="closed" initialLanguage={language} />;
   if (done)
     return <ParticipantStatus kind={demo ? 'demoSaved' : 'saved'} initialLanguage={language} />;
   return (
@@ -148,6 +151,17 @@ export default function ParticipantForm({
             <LockKeyhole size={13} />
             {t.readonly}
           </div>
+          {data.responseDeadline && (
+            <p className="muted">
+              {t.deadline}:{' '}
+              {sessionDateRange(
+                data.responseDeadline,
+                null,
+                { dateStyle: 'long' },
+                language === 'en' ? 'en-GB' : language === 'de' ? 'de-LU' : 'fr-LU',
+              )}
+            </p>
+          )}
         </section>
         <div className="form-progress">
           <span>{t.progress}</span>
@@ -189,6 +203,11 @@ export default function ParticipantForm({
                 }),
               });
               const body = await response.json();
+              if (response.status === 410) {
+                setClosed(true);
+                window.scrollTo(0, 0);
+                return;
+              }
               if (response.status === 409) {
                 setAlready(true);
                 window.scrollTo(0, 0);

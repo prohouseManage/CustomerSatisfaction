@@ -68,7 +68,38 @@ La migration `202610220005_session_end_date` reprend la date actuelle comme date
 
 Dans le tableau des participants (fiche de session et vue Participants), la colonne **Suivi e-mail** indique si la personne a été contactée, la date du dernier envoi confirmé et le nombre d’envois. Une nouvelle tentative en attente ou en échec ne masque pas les envois déjà confirmés. **Historique** affiche les tentatives automatiques et manuelles, leur préparation, leur statut et leur date d’envoi, en heure de Luxembourg. Les envois en attente se mettent à jour toutes les dix secondes lorsque le tableau est ouvert ; l’historique possède un bouton Actualiser. Une confirmation d’envoi individuel rappelle la date du précédent contact.
 
-Cet historique est réservé aux administrateurs (`GET /api/participants/{id}/emails`, 20 tentatives par page). Il concerne les messages liés aux participants ; le test technique `email:test:send` reste indépendant et n’y apparaît pas. « Envoyé » confirme l’acceptation SMTP par Mailgun, sans confirmer la réception ou l’ouverture du message.
+Cet historique est réservé aux collaborateurs autorisés (`GET /api/participants/{id}/emails`, 20 tentatives par page). Il concerne les messages liés aux participants ; le test technique `email:test:send` reste indépendant et n’y apparaît pas. Les états de prise en charge SMTP et de livraison sont distingués.
+
+## Livraison réelle : configuration Mailgun Europe
+
+Le SMTP ne fournit pas à lui seul la confirmation de livraison. L’application reçoit désormais les événements signés de Mailgun sur :
+
+```text
+https://customer-satisfaction-omega.vercel.app/api/webhook/mailgun
+```
+
+Pour activer le suivi :
+
+1. Dans Mailgun, ouvrir **Settings → API Security → HTTP webhook signing key**. Copier cette clé en privé ; ce n’est ni le mot de passe SMTP, ni la clé API. Ajouter `MAILGUN_WEBHOOK_SIGNING_KEY` aux variables serveur de **Vercel Production**, puis redéployer. Pour un test local, définir cette variable dans `.env.local` et utiliser un tunnel HTTPS privé.
+2. Dans la configuration **Webhooks** du domaine d’envoi, sélectionner la région **Europe / EU**. Conserver les webhooks existants des autres applications.
+3. Ajouter l’URL ci-dessus aux événements **Delivered**, **Temporary failure** et **Permanent failure**. **Accepted** est également pris en charge, mais facultatif puisque l’accusé SMTP confirme déjà l’acceptation. Selon l’interface Mailgun, les erreurs apparaissent aussi sous « failed » avec une sévérité temporary/permanent.
+4. Depuis l’application, envoyer manuellement une invitation à une adresse de test choisie, puis **Actualiser le suivi des e-mails**. Les nouveaux envois enregistrent leur identifiant de message avant SMTP ; le webhook retrouve la tentative exacte et vérifie aussi le destinataire. Le bouton de test générique Mailgun utilise un message fictif inconnu : son acquittement HTTP 200 vérifie seulement la réception du webhook, sans modifier un participant.
+
+Les statuts sont **Accepté par Mailgun**, **Livré au serveur destinataire**, **Livraison différée** et **Rejeté / non livré**. Un rejet permanent peut provenir d’une adresse inexistante, d’un refus du serveur ou d’une suppression Mailgun ; il ne prouve pas toujours que l’adresse est invalide. « Livré » ne garantit ni la lecture, ni l’absence de classement en indésirables. Aucun suivi d’ouverture ou de clic n’est ajouté.
+
+La signature HMAC est comparée en temps constant, avec une fenêtre de 24 heures pour permettre les reprises du fournisseur. Les événements sont dédupliqués en base. Un ancien événement « accepted » ou différé ne remplace jamais un état terminal ; les événements terminaux sont comparés selon leur date. Une confirmation signée peut résoudre un envoi SMTP « À vérifier », sans nouvelle émission. Aucun renvoi automatique n’est déclenché par le webhook. Les événements conservés contiennent seulement un identifiant haché, l’ID de tentative, un type et une date ; aucun contenu du message, token participant ou signature n’est stocké.
+
+Les envois historiques restent « acceptés » tant qu’aucune livraison n’est confirmée ; il n’y a pas de récupération rétroactive des événements. La suppression d’une session efface ses événements en cascade. Les invitations de collaboration et les tests SMTP techniques restent indépendants du suivi des participants.
+
+Références : [configuration des webhooks et régions](https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/configuring-webhooks), [signature des événements](https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/securing-webhooks), [sens des statuts Mailgun](https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/webhooks).
+
+## Clôture des réponses sans archivage
+
+Dans **Nouvelle session** ou **Modifier**, renseigner **Date limite de réponse**. Ce champ facultatif accepte les réponses jusqu’à la fin du jour choisi, en heure **Europe/Luxembourg**, y compris aux changements d’heure. Aucune tâche planifiée n’est nécessaire pour fermer les réponses : l’accès au formulaire et chaque soumission sont contrôlés côté serveur, sous verrou de session pour la soumission.
+
+La session conserve son statut et ses résultats ; elle peut rester **Active** avec une **Collecte clôturée**. Les réponses déjà reçues, rapports, exports et transmissions Odoo restent accessibles. Les invitations manuelles et automatiques ne partent plus après échéance. Les messages en attente restent conservés et pourront reprendre au traitement suivant si la date est prolongée ou retirée. Les messages dont la transmission a déjà commencé ne peuvent pas être rappelés. L’archivage et ses choix de reprise des e-mails restent indépendants.
+
+Une date déjà passée permet de fermer immédiatement la collecte. Prolonger la date ou la retirer rouvre les liens non utilisés si la session est active ; les liens déjà complétés restent définitivement inactifs. Les sessions existantes ne reçoivent aucune limite par défaut. L’API accepte `responseDeadline: "AAAA-MM-JJ"`, `null` pour retirer, et conserve la valeur si le champ est omis en modification.
 
 ## Archivage et réactivation
 

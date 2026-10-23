@@ -163,6 +163,7 @@ export default function SessionEditor({
                 'name',
                 'date',
                 'endDate',
+                'responseDeadline',
                 'formLanguage',
                 'trainer',
                 'description',
@@ -175,6 +176,7 @@ export default function SessionEditor({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 ...payload,
+                responseDeadline: payload.responseDeadline || null,
                 questions,
                 odooUrl,
                 odooEnabled: !!odooUrl.trim() && odooEnabled,
@@ -337,6 +339,20 @@ export default function SessionEditor({
                 onChange={(e) => changeDetail('trainer', e.target.value)}
                 placeholder="Prénom et nom"
               />
+            </label>
+            <label>
+              Date limite de réponse
+              <input
+                name="responseDeadline"
+                aria-label="Date limite de réponse"
+                type="date"
+                defaultValue={session?.responseDeadline?.slice(0, 10) || ''}
+              />
+              <span className="muted">
+                Facultative. Réponses acceptées jusqu’à la fin de cette journée, heure de
+                Luxembourg. Ensuite, le questionnaire ferme et les invitations sont suspendues. Les
+                rapports restent accessibles. Modifiez ou retirez la date pour rouvrir la collecte.
+              </span>
             </label>
             <label>
               Statut

@@ -58,6 +58,8 @@ import Collaboration from './collaboration';
 import { roleLabels, type StaffRole } from '@/lib/staff-policy';
 import EmailHistoryDialog, { ParticipantEmailCell } from './email-history';
 import { sessionDateRange } from '@/lib/session-dates';
+import { sessionLabel, type SessionIdentity } from '@/lib/session-identity';
+import { deadlinePassed } from '@/lib/response-window';
 import { deletionPhrase } from '@/lib/retention-policy';
 import EmailReactivationDialog from './email-reactivation';
 import type { EmailReactivation } from '@/lib/email-policy';
@@ -122,7 +124,7 @@ type ResponseRecord = {
   sessionId: string;
   submittedAt: string;
   participant: { firstName: string; lastName: string };
-  session: { name: string };
+  session: SessionIdentity;
 };
 export default function Workspace({
   demo,
@@ -1001,7 +1003,7 @@ export default function Workspace({
                       <option value="">Toutes les sessions</option>
                       {sessions.map((s) => (
                         <option value={s.id} key={s.id}>
-                          {s.name}
+                          {sessionLabel(s)}
                         </option>
                       ))}
                     </select>
@@ -1086,8 +1088,9 @@ export default function Workspace({
                             </span>
                             <h3>{q.label}</h3>
                             <small className="muted">
-                              {q.session}
-                              {q.sessionId ? ` · ${q.sessionId}` : ''}
+                              {sessions.find((s) => s.id === q.sessionId)
+                                ? sessionLabel(sessions.find((s) => s.id === q.sessionId)!)
+                                : `${q.session}${q.sessionId ? ` · ${q.sessionId}` : ''}`}
                             </small>
                             {q.archived && (
                               <span className="status archived">Ancien questionnaire</span>
@@ -1209,7 +1212,9 @@ export default function Workspace({
                                     </td>
                                     <td>
                                       {r.session.name}
-                                      <span className="report-response-id">{r.sessionId}</span>
+                                      <span className="report-response-id">
+                                        {sessionLabel(r.session)}
+                                      </span>
                                     </td>
                                     <td>{dateFmt(r.submittedAt)}</td>
                                   </tr>
@@ -1797,11 +1802,14 @@ function SessionTable({
                     <i />
                     {statusLabels[s.status]}
                   </span>
+                  {s.status === 'ACTIVE' && deadlinePassed(s.responseDeadline) && (
+                    <small className="subtle">Collecte clôturée</small>
+                  )}
                 </td>
                 <td>
                   <button
                     className="icon-btn table-open"
-                    aria-label={`Ouvrir ${s.name}`}
+                    aria-label={`Ouvrir ${sessionLabel(s)}`}
                     onClick={() => onOpen(s)}
                   >
                     <ChevronRight size={18} />
@@ -1861,7 +1869,14 @@ function ParticipantTable({
                 </div>
               </td>
               <td>{p.email}</td>
-              <td>{p.session.name}</td>
+              <td>
+                {p.session.name}
+                <span className="report-response-id">
+                  {p.sessionId}
+                  {p.session.date && ` · ${sessionDateRange(p.session.date, p.session.endDate)}`}
+                  {p.session.trainer && ` · ${p.session.trainer}`}
+                </span>
+              </td>
               <td>
                 <span className={`status ${p.submittedAt ? 'active' : 'draft'}`}>
                   <i />
@@ -2044,7 +2059,7 @@ function ImportDialog({
                 .filter((s) => s.status !== 'ARCHIVED')
                 .map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} · {s.id}
+                    {sessionLabel(s)}
                   </option>
                 ))}
             </select>

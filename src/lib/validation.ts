@@ -92,6 +92,7 @@ export const sessionSchema = z
     name: z.string().trim().min(3).max(200),
     date: calendarDateSchema,
     endDate: calendarDateSchema.nullish(),
+    responseDeadline: calendarDateSchema.nullish(),
     formLanguage: z.enum(['fr', 'de', 'en', 'auto']).optional(),
     trainer: z.string().trim().min(2).max(150),
     description: z.string().trim().max(3000).default(''),

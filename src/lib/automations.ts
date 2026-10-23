@@ -122,19 +122,29 @@ export async function automationOverview(now = new Date()) {
         OR: states.map((state) => ({ payload: { path: ['state'], equals: state } })),
       },
     });
-  const [runs, emailGroups, policy, odooPending, odooFailed, odooUncertain, paPending, paFailed] =
-    await Promise.all([
-      db.automationRun.findMany({ orderBy: { startedAt: 'desc' }, take: 20 }),
-      db.emailDelivery.groupBy({ by: ['status'], _count: true }),
-      getEmailPolicy(),
-      countOdoo(['PENDING', 'VERIFYING']),
-      countOdoo(['FAILED']),
-      countOdoo(['UNKNOWN', 'POSTING']),
-      db.webhookDelivery.count({ where: { ...powerAutomateOnly, deliveredAt: null } }),
-      db.webhookDelivery.count({
-        where: { ...powerAutomateOnly, deliveredAt: null, lastError: { not: null } },
-      }),
-    ]);
+  const [
+    runs,
+    emailGroups,
+    policy,
+    odooPending,
+    odooFailed,
+    odooUncertain,
+    paPending,
+    paFailed,
+    deliveryGroups,
+  ] = await Promise.all([
+    db.automationRun.findMany({ orderBy: { startedAt: 'desc' }, take: 20 }),
+    db.emailDelivery.groupBy({ by: ['status'], _count: true }),
+    getEmailPolicy(),
+    countOdoo(['PENDING', 'VERIFYING']),
+    countOdoo(['FAILED']),
+    countOdoo(['UNKNOWN', 'POSTING']),
+    db.webhookDelivery.count({ where: { ...powerAutomateOnly, deliveredAt: null } }),
+    db.webhookDelivery.count({
+      where: { ...powerAutomateOnly, deliveredAt: null, lastError: { not: null } },
+    }),
+    db.emailDelivery.groupBy({ by: ['providerStatus'], _count: true }),
+  ]);
   const timing = cronTimes(now);
   const last = runs[0];
   return {
@@ -153,6 +163,9 @@ export async function automationOverview(now = new Date()) {
       ...emailServiceStatus(),
       automaticEnabled: policy.enabled,
       counts: Object.fromEntries(emailGroups.map((g) => [g.status, g._count])),
+      deliveryCounts: Object.fromEntries(
+        deliveryGroups.filter((g) => g.providerStatus).map((g) => [g.providerStatus!, g._count]),
+      ),
     },
     odoo: { pending: odooPending, failed: odooFailed, uncertain: odooUncertain },
     powerAutomate: { configured: powerAutomateConfigured(), pending: paPending, failed: paFailed },

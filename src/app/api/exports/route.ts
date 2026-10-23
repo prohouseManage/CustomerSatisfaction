@@ -70,12 +70,15 @@ export const GET = api(async (request) => {
       'Formation jusqu’au': dateTo || '',
     },
   ];
+  const sessionsById = new Map(sessions.map((session) => [session.id, session]));
   if (format === 'xlsx') {
     const responses = await db.response.findMany({
       where: { session: sessionWhere },
       include: {
         participant: { select: { lastName: true, firstName: true, email: true } },
-        session: { select: { name: true, questions: true } },
+        session: {
+          select: { name: true, date: true, endDate: true, trainer: true, questions: true },
+        },
       },
     });
     return excelResponse(
@@ -99,6 +102,14 @@ export const GET = api(async (request) => {
           rows: stats.results.map((q) => ({
             Session: q.session,
             'ID session': q.sessionId,
+            'Dates de formation':
+              q.sessionId && sessionsById.has(q.sessionId)
+                ? sessionDateRange(
+                    sessionsById.get(q.sessionId)!.date,
+                    sessionsById.get(q.sessionId)!.endDate,
+                  )
+                : '',
+            Formateur: q.sessionId ? sessionsById.get(q.sessionId)?.trainer || '' : '',
             Question: q.label,
             Type: q.type,
             Version: q.archived ? 'Ancien questionnaire' : 'Questionnaire actuel',
@@ -113,6 +124,8 @@ export const GET = api(async (request) => {
             (r.answers as Answer[]).map((a) => ({
               Session: r.sessionId,
               Formation: r.session.name,
+              'Dates de formation': sessionDateRange(r.session.date, r.session.endDate),
+              Formateur: r.session.trainer,
               Nom: r.participant.lastName,
               Prénom: r.participant.firstName,
               Email: r.participant.email,

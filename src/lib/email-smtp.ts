@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { z } from 'zod';
 export type OutgoingEmail = {
   deliveryId: string;
+  messageId?: string;
   to: string;
   subject: string;
   text: string;
@@ -49,7 +50,7 @@ export async function sendSmtpEmail(message: OutgoingEmail) {
       subject: message.subject,
       text: message.text,
       html: message.html,
-      messageId: `<${message.deliveryId}@${config.from.split('@')[1]}>`,
+      messageId: `<${message.messageId || smtpMessageId(message.deliveryId)}>`,
       disableFileAccess: true,
       disableUrlAccess: true,
     });
@@ -76,4 +77,9 @@ export async function sendSmtpEmail(message: OutgoingEmail) {
   } finally {
     transport.close();
   }
+}
+export function smtpMessageId(deliveryId: string) {
+  const config = smtpConfiguration();
+  if (!config) throw new EmailSendError(false);
+  return `${deliveryId}@${config.from.split('@')[1]}`;
 }

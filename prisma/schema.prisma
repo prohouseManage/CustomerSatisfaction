@@ -69,6 +69,7 @@ model TrainingSession {
   name                String
   date                DateTime              @db.Date
   endDate             DateTime?             @db.Date
+  responseDeadline    DateTime?             @db.Date
   formLanguage        String                @default("fr")
   trainer             String
   description         String                @default("")
@@ -225,21 +226,38 @@ model SessionEmailSchedule {
 }
 
 model EmailDelivery {
-  id            String          @id @default(uuid())
-  sessionId     String
-  session       TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  participantId String
-  participant   Participant     @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  automaticKey  String?         @unique
-  status        String          @default("PENDING")
-  lockedUntil   DateTime?
-  notBefore     DateTime?       @db.Date
-  sentAt        DateTime?
-  lastError     String?
-  createdAt     DateTime        @default(now())
+  id                String               @id @default(uuid())
+  sessionId         String
+  session           TrainingSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participantId     String
+  participant       Participant          @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  automaticKey      String?              @unique
+  status            String               @default("PENDING")
+  lockedUntil       DateTime?
+  notBefore         DateTime?            @db.Date
+  sentAt            DateTime?
+  providerMessageId String?              @unique
+  providerStatus    String?
+  providerUpdatedAt DateTime?
+  deliveredAt       DateTime?
+  rejectedAt        DateTime?
+  events            EmailDeliveryEvent[]
+  lastError         String?
+  createdAt         DateTime             @default(now())
 
   @@index([status, createdAt])
   @@index([sessionId, participantId])
+}
+
+model EmailDeliveryEvent {
+  id         String        @id
+  deliveryId String
+  delivery   EmailDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  kind       String
+  occurredAt DateTime
+  createdAt  DateTime      @default(now())
+
+  @@index([deliveryId, occurredAt])
 }
 
 model AutomationRun {

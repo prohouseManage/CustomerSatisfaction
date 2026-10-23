@@ -46,7 +46,8 @@ export default function Docs() {
           </li>
           <li>
             <strong>Activez la session.</strong> Les liens des sessions en brouillon ou archivées
-            sont fermés.
+            sont fermés. Une date limite facultative ferme aussi les réponses à la fin du jour
+            choisi, heure de Luxembourg, sans archiver la session.
           </li>
           <li>
             <strong>Partagez les accès.</strong> Exportez les liens Excel ou les QR Codes PDF depuis
@@ -183,6 +184,26 @@ export default function Docs() {
         Les liens participants contiennent un secret d’accès. Transmettez-les uniquement à leur
         destinataire et protégez les exports nominatifs.
       </div>
+      <section className="docs-section" id="livraison-email">
+        <h2>Suivre la livraison des invitations</h2>
+        <p>
+          Le suivi distingue la prise en charge par Mailgun, la livraison au serveur destinataire,
+          la livraison différée et le rejet. « Livré » ne confirme pas la lecture ni le placement
+          dans la boîte de réception. Consultez l’historique depuis le suivi e-mail d’un
+          participant.
+        </p>
+        <p>
+          L’administrateur technique doit configurer les événements Delivered, Temporary failure et
+          Permanent failure du domaine Mailgun Europe vers <code>/api/webhook/mailgun</code>, puis
+          renseigner la clé de signature HTTP Mailgun dans la variable serveur
+          <code> MAILGUN_WEBHOOK_SIGNING_KEY</code> et redéployer. Aucun secret ne doit être saisi
+          dans un formulaire participant. Les événements Accepted sont facultatifs.
+        </p>
+        <p>
+          Les anciens envois restent sans confirmation de livraison tant qu’aucun événement ne les
+          confirme. Actualisez le suivi pour consulter les derniers états.
+        </p>
+      </section>
     </main>
   );
 }

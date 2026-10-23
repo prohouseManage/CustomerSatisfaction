@@ -25,6 +25,7 @@ export const PATCH = api<{ id: string }>(async (request, context) => {
     questions,
     date,
     endDate,
+    responseDeadline,
     id: newId,
     odooUrl,
     odooEnabled,
@@ -79,6 +80,9 @@ export const PATCH = api<{ id: string }>(async (request, context) => {
         ...data,
         date: new Date(date),
         endDate: end,
+        ...(responseDeadline !== undefined && {
+          responseDeadline: responseDeadline ? new Date(responseDeadline) : null,
+        }),
         archivedAt: archiveTimestamp(current.status, current.archivedAt, data.status),
         integrationRevision: { increment: 1 },
       },

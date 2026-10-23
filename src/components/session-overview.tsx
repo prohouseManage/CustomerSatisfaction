@@ -1,6 +1,7 @@
 import { BookOpen, CalendarDays, Pencil, Users } from 'lucide-react';
 import { sessionDateRange } from '@/lib/session-dates';
 import type { SessionRecord } from '@/lib/types';
+import { deadlinePassed } from '@/lib/response-window';
 
 const languageLabels = {
   fr: 'Français',
@@ -55,6 +56,17 @@ export default function SessionOverview({
         </div>
       </dl>
       <div className="session-description">
+        <h3>Collecte des réponses</h3>
+        <p>
+          {session.responseDeadline
+            ? `${deadlinePassed(session.responseDeadline) ? 'Date limite dépassée :' : 'Date limite :'} ${sessionDateRange(session.responseDeadline)} inclus, heure de Luxembourg.`
+            : 'Aucune date limite de réponse.'}
+        </p>
+        <button type="button" className="text-link" onClick={onEdit}>
+          <Pencil size={13} /> Modifier la date limite
+        </button>
+      </div>
+      <div className="session-description">
         <h3>Description</h3>
         {session.description ? (
           <p>{session.description}</p>
@@ -95,13 +107,15 @@ export default function SessionOverview({
         <p className="muted">
           {session.status === 'ARCHIVED'
             ? 'Session archivée : questionnaires fermés et envois suspendus.'
-            : session.status === 'DRAFT'
-              ? 'Activez la session pour ouvrir les questionnaires aux participants.'
-              : pending
-                ? `${pending} participant${pending > 1 ? 's' : ''} n’${pending > 1 ? 'ont' : 'a'} pas encore répondu.`
-                : participants
-                  ? 'Tous les participants ont répondu.'
-                  : 'Importez les participants pour commencer la collecte.'}
+            : deadlinePassed(session.responseDeadline)
+              ? 'Date limite dépassée : réponses fermées et invitations suspendues. Les résultats restent accessibles.'
+              : session.status === 'DRAFT'
+                ? 'Activez la session pour ouvrir les questionnaires aux participants.'
+                : pending
+                  ? `${pending} participant${pending > 1 ? 's' : ''} n’${pending > 1 ? 'ont' : 'a'} pas encore répondu.`
+                  : participants
+                    ? 'Tous les participants ont répondu.'
+                    : 'Importez les participants pour commencer la collecte.'}
         </p>
       </div>
     </section>

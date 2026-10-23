@@ -8,6 +8,7 @@ import ParticipantForm, {
 } from '@/components/participant-form';
 import { initialFormLanguage } from '@/lib/form-language';
 import { getOdooConfig } from '@/lib/odoo-config';
+import { responsesOpen } from '@/lib/response-window';
 export const dynamic = 'force-dynamic';
 export default async function ParticipantPage({
   params,
@@ -53,7 +54,7 @@ export default async function ParticipantPage({
         acceptLanguage: requestHeaders.get('accept-language'),
       });
       completed = !!p.submittedAt;
-      closed = p.session.status !== 'ACTIVE';
+      closed = !responsesOpen(p.session);
       if (!completed && !closed)
         data = {
           sessionId,
@@ -61,6 +62,7 @@ export default async function ParticipantPage({
           trainer: p.session.trainer,
           date: p.session.date.toISOString(),
           endDate: p.session.endDate?.toISOString(),
+          responseDeadline: p.session.responseDeadline?.toISOString(),
           firstName: p.firstName,
           lastName: p.lastName,
           email: p.email,
