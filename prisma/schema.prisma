@@ -70,6 +70,7 @@ model TrainingSession {
   date                DateTime              @db.Date
   endDate             DateTime?             @db.Date
   responseDeadline    DateTime?             @db.Date
+  responsesClosedAt   DateTime?
   formLanguage        String                @default("fr")
   trainer             String
   description         String                @default("")

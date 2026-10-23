@@ -185,6 +185,7 @@ export async function emailOverview(sessionId: string) {
     suspended: Boolean(schedule?.suspended),
     active: responsesOpen(session),
     responseDeadline: session.responseDeadline,
+    responsesClosedAt: session.responsesClosedAt,
     deliveryCounts: Object.fromEntries(
       providerCounts.filter((c) => c.providerStatus).map((c) => [c.providerStatus!, c._count]),
     ),
@@ -261,6 +262,7 @@ export async function queueAutomaticEmails(now = new Date()) {
       LEFT JOIN "SessionEmailSchedule" e ON e."sessionId"=s.id
       WHERE s.status='ACTIVE' AND p."submittedAt" IS NULL AND COALESCE(e.mode,'INHERIT') <> 'OFF' AND NOT COALESCE(e.suspended,false)
         AND (s."responseDeadline" IS NULL OR s."responseDeadline" >= ${luxembourgDate(now)}::date)
+        AND s."responsesClosedAt" IS NULL
         AND (e."resumeOn" IS NULL OR e."resumeOn" <= ${luxembourgDate(now)}::date)
         AND COALESCE(s."endDate",s.date) + (CASE WHEN e.mode='CUSTOM' THEN e."delayDays" ELSE ${policy.delayDays} END)::int <= ${luxembourgDate(now)}::date
         AND NOT EXISTS (SELECT 1 FROM "EmailDelivery" d WHERE d."automaticKey"=p.id OR (d."participantId"=p.id AND d.status IN ('PENDING','SENDING','UNKNOWN')))
@@ -342,6 +344,7 @@ export async function deliverEmails(
     WHERE d.status='PENDING' AND (${sessionId || null}::text IS NULL OR d."sessionId"=${sessionId || null})
       AND s.status='ACTIVE' AND (d."notBefore" IS NULL OR d."notBefore" <= ${luxembourgDate(now)}::date)
       AND (s."responseDeadline" IS NULL OR s."responseDeadline" >= ${luxembourgDate(now)}::date)
+      AND s."responsesClosedAt" IS NULL
       AND (d."automaticKey" IS NULL OR (${policy.enabled} AND NOT COALESCE(e.suspended,false) AND COALESCE(e.mode,'INHERIT')<>'OFF' AND (e."resumeOn" IS NULL OR e."resumeOn"<=${luxembourgDate(now)}::date) AND COALESCE(s."endDate",s.date)+(CASE WHEN e.mode='CUSTOM' THEN e."delayDays" ELSE ${policy.delayDays} END)::int <= ${luxembourgDate(now)}::date))
     ORDER BY d."createdAt",d.id LIMIT ${budget?.limit || 100}`;
   let sent = 0,
@@ -430,7 +433,9 @@ export async function deliverEmails(
         participant: { submittedAt: null },
         session: { status: 'ACTIVE', integrationRevision: claimed.sessionRevision },
       },
-      include: { session: { select: { status: true, responseDeadline: true } } },
+      include: {
+        session: { select: { status: true, responseDeadline: true, responsesClosedAt: true } },
+      },
     });
     if (!live || !responsesOpen(live.session)) {
       await db.$transaction(async (tx) => {

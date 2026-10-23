@@ -1,7 +1,9 @@
 import { BookOpen, CalendarDays, Pencil, Users } from 'lucide-react';
 import { sessionDateRange } from '@/lib/session-dates';
 import type { SessionRecord } from '@/lib/types';
-import { deadlinePassed } from '@/lib/response-window';
+import { deadlinePassed, responsesOpen } from '@/lib/response-window';
+import { CollectionButton } from './collection-controls';
+import { emailDate } from '@/lib/email-tracking';
 
 const languageLabels = {
   fr: 'Français',
@@ -14,9 +16,11 @@ const statusLabels = { ACTIVE: 'Active', DRAFT: 'Brouillon', ARCHIVED: 'Archivé
 export default function SessionOverview({
   session,
   onEdit,
+  onCollection,
 }: {
   session: SessionRecord;
   onEdit: () => void;
+  onCollection: () => void;
 }) {
   const participants = session._count.participants;
   const responses = session._count.responses;
@@ -26,9 +30,13 @@ export default function SessionOverview({
     <section className="panel session-info">
       <div className="session-overview-heading">
         <h2>Vue d’ensemble</h2>
-        <span className={`status ${session.status.toLowerCase()}`}>
+        <span
+          className={`status ${session.status === 'ACTIVE' && !responsesOpen(session) ? 'draft' : session.status.toLowerCase()}`}
+        >
           <i />
-          {statusLabels[session.status]}
+          {session.status === 'ACTIVE' && !responsesOpen(session)
+            ? 'Collecte clôturée'
+            : statusLabels[session.status]}
         </span>
       </div>
       <dl className="session-facts">
@@ -57,14 +65,20 @@ export default function SessionOverview({
       </dl>
       <div className="session-description">
         <h3>Collecte des réponses</h3>
+        {session.responsesClosedAt && (
+          <p>Clôturée manuellement le {emailDate(session.responsesClosedAt)}.</p>
+        )}
         <p>
           {session.responseDeadline
             ? `${deadlinePassed(session.responseDeadline) ? 'Date limite dépassée :' : 'Date limite :'} ${sessionDateRange(session.responseDeadline)} inclus, heure de Luxembourg.`
             : 'Aucune date limite de réponse.'}
         </p>
-        <button type="button" className="text-link" onClick={onEdit}>
-          <Pencil size={13} /> Modifier la date limite
-        </button>
+        <div className="collection-actions">
+          <CollectionButton session={session} onClick={onCollection} />
+          <button type="button" className="text-link" onClick={onEdit}>
+            <Pencil size={13} /> Modifier la date limite
+          </button>
+        </div>
       </div>
       <div className="session-description">
         <h3>Description</h3>
@@ -107,15 +121,17 @@ export default function SessionOverview({
         <p className="muted">
           {session.status === 'ARCHIVED'
             ? 'Session archivée : questionnaires fermés et envois suspendus.'
-            : deadlinePassed(session.responseDeadline)
-              ? 'Date limite dépassée : réponses fermées et invitations suspendues. Les résultats restent accessibles.'
-              : session.status === 'DRAFT'
-                ? 'Activez la session pour ouvrir les questionnaires aux participants.'
-                : pending
-                  ? `${pending} participant${pending > 1 ? 's' : ''} n’${pending > 1 ? 'ont' : 'a'} pas encore répondu.`
-                  : participants
-                    ? 'Tous les participants ont répondu.'
-                    : 'Importez les participants pour commencer la collecte.'}
+            : session.responsesClosedAt
+              ? 'Réponses clôturées manuellement et invitations suspendues. Les résultats restent accessibles.'
+              : deadlinePassed(session.responseDeadline)
+                ? 'Date limite dépassée : réponses fermées et invitations suspendues. Les résultats restent accessibles.'
+                : session.status === 'DRAFT'
+                  ? 'Activez la session pour ouvrir les questionnaires aux participants.'
+                  : pending
+                    ? `${pending} participant${pending > 1 ? 's' : ''} n’${pending > 1 ? 'ont' : 'a'} pas encore répondu.`
+                    : participants
+                      ? 'Tous les participants ont répondu.'
+                      : 'Importez les participants pour commencer la collecte.'}
         </p>
       </div>
     </section>

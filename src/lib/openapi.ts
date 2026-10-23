@@ -62,6 +62,25 @@ export const openapi = {
     { name: 'Intégrations' },
   ],
   paths: {
+    '/api/sessions/{id}/collection': {
+      post: {
+        tags: ['Sessions'],
+        summary: 'Clôturer ou rouvrir immédiatement les réponses sans archiver',
+        security: adminSecurity,
+        parameters: [pathId, origin],
+        description:
+          'Administrateur ou Manager. Session ACTIVE requise. CLOSE conserve la date limite et suspend les invitations. REOPEN retire la clôture manuelle et une éventuelle date limite expirée ; une date future est conservée. Les liens complétés restent désactivés. Aucun e-mail ni envoi Odoo immédiat. Actions idempotentes, sérialisées avec les soumissions et journalisées.',
+        requestBody: body({
+          type: 'object',
+          additionalProperties: false,
+          required: ['action'],
+          properties: {
+            action: { type: 'string', enum: ['CLOSE', 'REOPEN'] },
+          },
+        }),
+        responses: { 200: ok(ref('Session')), ...errors },
+      },
+    },
     '/api/webhook/mailgun': {
       post: {
         tags: ['Intégrations'],
@@ -1210,6 +1229,14 @@ export const openapi = {
                 readOnly: true,
                 description:
                   'Point de départ du délai de conservation. Remis à null à la réactivation.',
+              },
+              responsesClosedAt: {
+                type: 'string',
+                format: 'date-time',
+                nullable: true,
+                readOnly: true,
+                description:
+                  'Clôture manuelle des réponses, indépendante de la date limite et de l’archivage. Modifiable uniquement par POST /api/sessions/{id}/collection.',
               },
               pdfTemplateId: {
                 type: 'string',

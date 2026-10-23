@@ -189,6 +189,103 @@ test(
           },
         );
         await t.test(
+          'clôture manuelle : usage unique, idempotence, rapports et réouverture avec date expirée',
+          async () => {
+            const { changeCollection } = await import('../../src/lib/collection');
+            const { responsesOpen } = await import('../../src/lib/response-window');
+            const actor = { id: 'test-admin', ipHash: 'test-collection' };
+            const target = await db.trainingSession.create({
+              data: {
+                id: 'MANUAL-COLLECTION',
+                name: 'Clôture manuelle',
+                trainer: 'Test',
+                date: session.date,
+                status: 'ACTIVE',
+                responseDeadline: new Date('2099-12-31'),
+                questions: { create: [{ label: 'Votre avis', type: 'RATING_4', position: 0 }] },
+              },
+              include: { questions: true },
+            });
+            const personalToken = generateToken();
+            const person = await db.participant.create({
+              data: {
+                sessionId: target.id,
+                firstName: 'Test',
+                lastName: 'Manuel',
+                email: 'manual@example.org',
+                tokenHash: hashToken(personalToken),
+                tokenEncrypted: encryptToken(personalToken),
+              },
+            });
+            const data = {
+              sessionId: target.id,
+              token: personalToken,
+              answers: [{ questionId: target.questions[0].id, value: 4 }],
+            };
+            try {
+              const closed = await Promise.all(
+                Array.from({ length: 4 }, () => changeCollection(target.id, 'CLOSE', actor)),
+              );
+              assert.ok(closed[0].responsesClosedAt);
+              assert.ok(
+                closed.every(
+                  (s) => s.responsesClosedAt?.getTime() === closed[0].responsesClosedAt?.getTime(),
+                ),
+              );
+              assert.equal(closed[0].status, 'ACTIVE');
+              assert.equal(
+                await db.auditLog.count({
+                  where: { action: 'SESSION_RESPONSES_CLOSED', resourceId: target.id },
+                }),
+                1,
+              );
+              await assert.rejects(submitResponse(data, 'test'), { status: 410 });
+              assert.equal(
+                (await db.participant.findUniqueOrThrow({ where: { id: person.id } })).submittedAt,
+                null,
+              );
+              await db.trainingSession.update({
+                where: { id: target.id },
+                data: { responseDeadline: null, status: 'ARCHIVED' },
+              });
+              await assert.rejects(changeCollection(target.id, 'REOPEN', actor), { status: 409 });
+              await db.trainingSession.update({
+                where: { id: target.id },
+                data: { responseDeadline: new Date('2099-12-31'), status: 'ACTIVE' },
+              });
+              assert.equal(
+                responsesOpen(
+                  await db.trainingSession.findUniqueOrThrow({ where: { id: target.id } }),
+                ),
+                false,
+              );
+              const reopened = await changeCollection(target.id, 'REOPEN', actor);
+              assert.equal(reopened.responsesClosedAt, null);
+              assert.equal(reopened.responseDeadline?.toISOString().slice(0, 10), '2099-12-31');
+              await changeCollection(target.id, 'CLOSE', actor);
+              await db.trainingSession.update({
+                where: { id: target.id },
+                data: { responseDeadline: new Date('2000-01-01') },
+              });
+              assert.equal(
+                (await changeCollection(target.id, 'REOPEN', actor)).responseDeadline,
+                null,
+              );
+              await submitResponse(data, 'test');
+              await changeCollection(target.id, 'CLOSE', actor);
+              assert.equal((await statistics(target.id)).responses, 1);
+              await changeCollection(target.id, 'REOPEN', actor);
+              await assert.rejects(submitResponse(data, 'test'), { status: 409 });
+              assert.equal(await db.response.count({ where: { sessionId: target.id } }), 1);
+            } finally {
+              await db.webhookDelivery.deleteMany({
+                where: { payload: { path: ['sessionId'], equals: target.id } },
+              });
+              await db.trainingSession.delete({ where: { id: target.id } });
+            }
+          },
+        );
+        await t.test(
           'les retours ultérieurs restent refusés et l’événement est complet',
           async () => {
             await assert.rejects(

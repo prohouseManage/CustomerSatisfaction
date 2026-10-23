@@ -199,6 +199,12 @@ export default function SessionEditor({
           <p className="muted">
             Définissez la formation et les questions à poser à vos participants.
           </p>
+          {session?.responsesClosedAt && (
+            <p className="notice">
+              Cette collecte est clôturée manuellement. Modifier la date limite ne la rouvre pas.
+              Utilisez « Rouvrir les réponses » depuis la fiche ou la liste des sessions.
+            </p>
+          )}
           <div className="section-heading">
             <h3>Lien Odoo et préremplissage</h3>
             <span className="optional">facultatif</span>
@@ -351,7 +357,8 @@ export default function SessionEditor({
               <span className="muted">
                 Facultative. Réponses acceptées jusqu’à la fin de cette journée, heure de
                 Luxembourg. Ensuite, le questionnaire ferme et les invitations sont suspendues. Les
-                rapports restent accessibles. Modifiez ou retirez la date pour rouvrir la collecte.
+                rapports restent accessibles. Si seule la date ferme les réponses, prolongez-la ou
+                retirez-la pour rouvrir.
               </span>
             </label>
             <label>

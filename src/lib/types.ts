@@ -6,6 +6,7 @@ export type SessionRecord = {
   date: string;
   endDate?: string | null;
   responseDeadline?: string | null;
+  responsesClosedAt?: string | null;
   formLanguage?: 'fr' | 'de' | 'en' | 'auto';
   trainer: string;
   description: string;

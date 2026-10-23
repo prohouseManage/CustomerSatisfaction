@@ -89,7 +89,9 @@ Les **Paramètres → Invitations et rappels par e-mail** définissent un calend
 
 Les listes et sélecteurs distinguent les formations homonymes avec leur **ID, dates et formateur**. Les mêmes références accompagnent les participants, les résultats et les exports.
 
-Une **date limite de réponse** facultative, réglable à la création ou à la modification, ferme la collecte à la fin du jour choisi en heure de Luxembourg, sans archiver ni masquer les rapports. Les soumissions et invitations sont bloquées après échéance ; prolonger ou retirer cette date rouvre les liens non consommés.
+Une **date limite de réponse** facultative, réglable à la création ou à la modification, ferme la collecte à la fin du jour choisi en heure de Luxembourg, sans archiver ni masquer les rapports. Les soumissions et invitations sont bloquées après échéance ; en l’absence de clôture manuelle, prolonger ou retirer cette date rouvre les liens non consommés.
+
+Pour fermer immédiatement, utiliser **Clôturer les réponses** depuis la liste ou la fiche de session, puis confirmer. **Rouvrir les réponses** permet une réouverture explicite ; les liens complétés restent désactivés. Une clôture manuelle ne disparaît pas en modifiant la date limite. Les sessions actives dont les réponses sont fermées affichent **Collecte clôturée** dans la liste.
 
 Le suivi e-mail distingue l’acceptation SMTP, la livraison au serveur destinataire, le report et le rejet grâce au webhook signé `POST /api/webhook/mailgun`. L’activation nécessite `MAILGUN_WEBHOOK_SIGNING_KEY` et les événements du domaine Mailgun Europe ; [étapes détaillées](docs/emails.md#livraison-réelle--configuration-mailgun-europe). Aucun envoi de test réel n’est déclenché par l’installation.
 

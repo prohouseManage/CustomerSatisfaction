@@ -95,11 +95,17 @@ Références : [configuration des webhooks et régions](https://documentation.ma
 
 ## Clôture des réponses sans archivage
 
+La liste des sessions et leur fiche proposent **Clôturer les réponses**, puis **Rouvrir les réponses**. Les deux actions demandent confirmation et sont accessibles aux administrateurs et Managers. La clôture est immédiate, conserve le statut de session et les réponses existantes, et bloque aussi les soumissions depuis une page déjà ouverte. Les invitations manuelles et automatiques s’arrêtent ; les messages en attente sont conservés. Aucun e-mail ni envoi Odoo n’est déclenché par ces boutons.
+
+La clôture manuelle est indépendante de la date limite : modifier ou retirer la date, archiver ou réactiver la session ne retire pas cette clôture. La réouverture explicite retire la clôture manuelle ; si une date limite est déjà dépassée, elle est également retirée pour permettre les réponses. Une date future est conservée. La confirmation précise que les messages en attente pourront reprendre selon leur calendrier au prochain traitement. Les liens déjà complétés restent définitivement désactivés.
+
+La liste affiche **Collecte clôturée** et propose des filtres de collecte ouverte/clôturée. API : `POST /api/sessions/{id}/collection` avec `{ "action": "CLOSE" }` ou `{ "action": "REOPEN" }`. L’horodatage `responsesClosedAt` est en lecture seule dans les autres API. Les actions utilisent le même verrou que les soumissions, sont idempotentes et journalisent le collaborateur.
+
 Dans **Nouvelle session** ou **Modifier**, renseigner **Date limite de réponse**. Ce champ facultatif accepte les réponses jusqu’à la fin du jour choisi, en heure **Europe/Luxembourg**, y compris aux changements d’heure. Aucune tâche planifiée n’est nécessaire pour fermer les réponses : l’accès au formulaire et chaque soumission sont contrôlés côté serveur, sous verrou de session pour la soumission.
 
 La session conserve son statut et ses résultats ; elle peut rester **Active** avec une **Collecte clôturée**. Les réponses déjà reçues, rapports, exports et transmissions Odoo restent accessibles. Les invitations manuelles et automatiques ne partent plus après échéance. Les messages en attente restent conservés et pourront reprendre au traitement suivant si la date est prolongée ou retirée. Les messages dont la transmission a déjà commencé ne peuvent pas être rappelés. L’archivage et ses choix de reprise des e-mails restent indépendants.
 
-Une date déjà passée permet de fermer immédiatement la collecte. Prolonger la date ou la retirer rouvre les liens non utilisés si la session est active ; les liens déjà complétés restent définitivement inactifs. Les sessions existantes ne reçoivent aucune limite par défaut. L’API accepte `responseDeadline: "AAAA-MM-JJ"`, `null` pour retirer, et conserve la valeur si le champ est omis en modification.
+Une date déjà passée permet de fermer immédiatement la collecte. Prolonger la date ou la retirer rouvre les liens non utilisés si la session est active et sans clôture manuelle ; les liens déjà complétés restent définitivement inactifs. Les sessions existantes ne reçoivent aucune limite par défaut. L’API accepte `responseDeadline: "AAAA-MM-JJ"`, `null` pour retirer, et conserve la valeur si le champ est omis en modification.
 
 ## Archivage et réactivation
 

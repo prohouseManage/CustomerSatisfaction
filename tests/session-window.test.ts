@@ -16,6 +16,15 @@ test('date limite incluse à Luxembourg, passages heure été/hiver et sans date
   assert.equal(responsesOpen({ status: 'ACTIVE', responseDeadline: null }), true);
   assert.equal(responsesOpen({ status: 'DRAFT' }), false);
   assert.equal(responsesOpen({ status: 'ARCHIVED' }), false);
+  assert.equal(
+    responsesOpen({
+      status: 'ACTIVE',
+      responseDeadline: '2099-12-31',
+      responsesClosedAt: '2026-10-23T08:00:00Z',
+    }),
+    false,
+  );
+  assert.equal(responsesOpen({ status: 'ACTIVE', responsesClosedAt: null }), true);
 });
 test('identification des formations homonymes et validation de la date limite', () => {
   const a = { id: 'TEST-001', name: 'Même formation', date: '2026-10-01', trainer: 'Jean Dupont' };

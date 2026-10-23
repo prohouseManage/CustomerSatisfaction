@@ -59,7 +59,8 @@ import { roleLabels, type StaffRole } from '@/lib/staff-policy';
 import EmailHistoryDialog, { ParticipantEmailCell } from './email-history';
 import { sessionDateRange } from '@/lib/session-dates';
 import { sessionLabel, type SessionIdentity } from '@/lib/session-identity';
-import { deadlinePassed } from '@/lib/response-window';
+import { responsesOpen } from '@/lib/response-window';
+import CollectionDialog, { CollectionButton } from './collection-controls';
 import { deletionPhrase } from '@/lib/retention-policy';
 import EmailReactivationDialog from './email-reactivation';
 import type { EmailReactivation } from '@/lib/email-policy';
@@ -224,6 +225,7 @@ export default function Workspace({
     ['PENDING', 'SENDING'].includes(p.emailSummary?.latest?.status || ''),
   );
   const [reactivateSession, setReactivateSession] = useState<SessionRecord | null>(null);
+  const [collectionSession, setCollectionSession] = useState<SessionRecord | null>(null);
   const [emailRefresh, setEmailRefresh] = useState(0);
   const [sessionDetail, setSessionDetail] = useState<SessionRecord | null>(null);
   const base = demo ? '/demo' : '/admin';
@@ -447,7 +449,10 @@ export default function Workspace({
   }
   const shownSessions = sessions.filter(
     (s) =>
-      (filter === 'ALL' || s.status === filter) &&
+      (filter === 'ALL' ||
+        s.status === filter ||
+        (filter === 'OPEN' && responsesOpen(s)) ||
+        (filter === 'CLOSED' && s.status === 'ACTIVE' && !responsesOpen(s))) &&
       `${s.name} ${s.id} ${s.trainer}`.toLowerCase().includes(query.toLowerCase()),
   );
   const shownParticipants = !demo
@@ -742,7 +747,11 @@ export default function Workspace({
                         <ArrowRight size={16} />
                       </button>
                     </div>
-                    <SessionTable sessions={sessions.slice(0, 4)} onOpen={open} />
+                    <SessionTable
+                      sessions={sessions.slice(0, 4)}
+                      onOpen={open}
+                      onCollection={(s) => authorized(() => setCollectionSession(s))}
+                    />
                   </section>
                   <div className="bottom-note">
                     <ShieldCheck size={16} />
@@ -793,11 +802,17 @@ export default function Workspace({
                       >
                         <option value="ALL">Tous les statuts</option>
                         <option value="ACTIVE">Actives</option>
+                        <option value="OPEN">Collecte ouverte</option>
+                        <option value="CLOSED">Collecte clôturée</option>
                         <option value="DRAFT">Brouillons</option>
                         <option value="ARCHIVED">Archivées</option>
                       </select>
                     </Toolbar>
-                    <SessionTable sessions={shownSessions} onOpen={open} />
+                    <SessionTable
+                      sessions={shownSessions}
+                      onOpen={open}
+                      onCollection={(s) => authorized(() => setCollectionSession(s))}
+                    />
                     <div className="table-footer">
                       {shownSessions.length} session{shownSessions.length > 1 ? 's' : ''} affichée
                       {shownSessions.length > 1 ? 's' : ''}
@@ -815,6 +830,7 @@ export default function Workspace({
                     <SessionOverview
                       session={current}
                       onEdit={() => authorized(() => setEditor(current))}
+                      onCollection={() => authorized(() => setCollectionSession(current))}
                     />
                     <div className="panel share-panel">
                       <SessionPdfPanel
@@ -1399,6 +1415,24 @@ export default function Workspace({
           }}
         />
       )}
+      {collectionSession && (
+        <CollectionDialog
+          session={collectionSession}
+          onClose={() => setCollectionSession(null)}
+          onSaved={(updated) => {
+            setCollectionSession(null);
+            setSessions((items) => items.map((s) => (s.id === updated.id ? updated : s)));
+            setSessionDetail((current) => (current?.id === updated.id ? updated : current));
+            setEmailRefresh((n) => n + 1);
+            setToast(
+              updated.responsesClosedAt
+                ? 'Les réponses sont clôturées.'
+                : 'Les réponses sont rouvertes.',
+            );
+            reload();
+          }}
+        />
+      )}
       {emailHistoryTarget && (
         <EmailHistoryDialog
           key={emailHistoryTarget.id}
@@ -1729,9 +1763,11 @@ function Satisfaction({ stats }: { stats: Stats }) {
 function SessionTable({
   sessions,
   onOpen,
+  onCollection,
 }: {
   sessions: SessionRecord[];
   onOpen: (s: SessionRecord) => void;
+  onCollection: (s: SessionRecord) => void;
 }) {
   if (!sessions.length)
     return (
@@ -1798,22 +1834,26 @@ function SessionTable({
                   </div>
                 </td>
                 <td>
-                  <span className={`status ${s.status.toLowerCase()}`}>
+                  <span
+                    className={`status ${s.status === 'ACTIVE' && !responsesOpen(s) ? 'draft' : s.status.toLowerCase()}`}
+                  >
                     <i />
-                    {statusLabels[s.status]}
+                    {s.status === 'ACTIVE' && !responsesOpen(s)
+                      ? 'Collecte clôturée'
+                      : statusLabels[s.status]}
                   </span>
-                  {s.status === 'ACTIVE' && deadlinePassed(s.responseDeadline) && (
-                    <small className="subtle">Collecte clôturée</small>
-                  )}
                 </td>
                 <td>
-                  <button
-                    className="icon-btn table-open"
-                    aria-label={`Ouvrir ${sessionLabel(s)}`}
-                    onClick={() => onOpen(s)}
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+                  <div className="session-row-actions">
+                    <CollectionButton session={s} compact onClick={() => onCollection(s)} />
+                    <button
+                      className="icon-btn table-open"
+                      aria-label={`Ouvrir ${sessionLabel(s)}`}
+                      onClick={() => onOpen(s)}
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

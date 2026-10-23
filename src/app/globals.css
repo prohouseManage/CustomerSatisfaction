@@ -1649,6 +1649,23 @@ tbody tr:hover {
   color: var(--muted);
   margin-top: 5px;
 }
+.collection-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.session-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.collection-compact {
+  padding: 7px 10px;
+  font-size: 11px;
+}
 .section-heading {
   display: flex;
   justify-content: space-between;

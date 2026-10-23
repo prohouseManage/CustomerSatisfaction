@@ -656,6 +656,58 @@ test(
           },
         );
         await t.test(
+          'clôture manuelle : arrêt des invitations et reprise des messages en attente',
+          async () => {
+            const { changeCollection } = await import('../../src/lib/collection');
+            const target = await db.trainingSession.create({
+              data: {
+                id: 'EMAIL-MANUAL-CLOSED',
+                name: 'Clôture manuelle',
+                trainer: 'Test',
+                date: new Date('2020-01-01'),
+                status: 'ACTIVE',
+                responsesClosedAt: new Date(),
+              },
+            });
+            const token = generateToken();
+            const person = await db.participant.create({
+              data: {
+                sessionId: target.id,
+                firstName: 'Test',
+                lastName: 'Manuel',
+                email: 'manual@example.org',
+                tokenHash: hashToken(token),
+                tokenEncrypted: encryptToken(token),
+              },
+            });
+            try {
+              await db.emailSettings.update({ where: { id: 'email' }, data: { enabled: true } });
+              await assert.rejects(queueManualEmails(target.id, person.id, 'test'), {
+                status: 409,
+              });
+              await queueAutomaticEmails();
+              assert.equal(await db.emailDelivery.count({ where: { sessionId: target.id } }), 0);
+              await db.emailDelivery.create({
+                data: { sessionId: target.id, participantId: person.id },
+              });
+              let sent = 0;
+              await deliverEmails(target.id, async () => {
+                sent++;
+              });
+              assert.equal(sent, 0);
+              assert.equal((await emailOverview(target.id)).active, false);
+              await changeCollection(target.id, 'REOPEN', { id: 'test', ipHash: 'test' });
+              assert.equal(sent, 0);
+              await deliverEmails(target.id, async () => {
+                sent++;
+              });
+              assert.equal(sent, 1);
+            } finally {
+              await db.trainingSession.delete({ where: { id: target.id } });
+            }
+          },
+        );
+        await t.test(
           'Mailgun : signature, concurrence, ordre des événements, refus et purge en cascade sans SMTP',
           async () => {
             const { receiveMailgunEvent } = await import('../../src/lib/mailgun-events');

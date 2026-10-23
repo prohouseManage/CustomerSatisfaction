@@ -712,6 +712,113 @@ async function main() {
     );
     await form.goto(personalLink);
     await form.getByRole('heading', { name: 'Et si on faisait encore mieux ?' }).waitFor();
+    // Warm the action route before opening a dialog in development (Fast Refresh).
+    assert.equal(
+      (
+        await page.request.post(`${url}/api/sessions/${session.id}/collection`, {
+          headers: { Origin: url },
+          data: {},
+        })
+      ).status(),
+      400,
+    );
+    assert.equal(
+      (
+        await visitor.request.post(`${url}/api/sessions/${session.id}/collection`, {
+          headers: { Origin: url },
+          data: { action: 'CLOSE' },
+        })
+      ).status(),
+      401,
+    );
+    assert.equal(
+      (
+        await page.request.post(`${url}/api/sessions/${session.id}/collection`, {
+          headers: { Origin: 'https://invalid.example' },
+          data: { action: 'CLOSE' },
+        })
+      ).status(),
+      403,
+    );
+    await form.reload();
+    for (let i = 0; i < 11; i++)
+      await form
+        .locator('.star-rating')
+        .nth(i)
+        .getByRole('radio', { name: '4 étoiles sur 4', exact: true })
+        .check();
+    await page.goto(`${url}/admin?view=sessions`);
+    const collectionRow = page.locator('tbody tr').filter({ hasText: session.id });
+    await collectionRow
+      .getByRole('button', {
+        name: `Clôturer les réponses de la session ${session.id}`,
+        exact: true,
+      })
+      .click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Annuler', exact: true }).click();
+    assert.equal(
+      (await db.trainingSession.findUniqueOrThrow({ where: { id: session.id } })).responsesClosedAt,
+      null,
+    );
+    await collectionRow
+      .getByRole('button', {
+        name: `Clôturer les réponses de la session ${session.id}`,
+        exact: true,
+      })
+      .click();
+    const manualClosed = page.waitForResponse(
+      (r) =>
+        r.url().endsWith(`/api/sessions/${session.id}/collection`) &&
+        r.request().method() === 'POST',
+    );
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Confirmer la clôture', exact: true })
+      .click();
+    assert.equal((await manualClosed).status(), 200);
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await collectionRow.getByText('Collecte clôturée', { exact: true }).waitFor();
+    await page.getByLabel('Filtrer par statut', { exact: true }).selectOption('CLOSED');
+    assert.equal(await page.locator('tbody tr').count(), 1);
+    await page.screenshot({
+      path: 'test-results/manual-collection-list-desktop.png',
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: 'test-results/manual-collection-list-mobile.png',
+      fullPage: true,
+    });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await form.getByRole('button', { name: 'Envoyer mon avis', exact: true }).click();
+    await form.getByRole('heading', { name: 'Ce questionnaire est fermé.', exact: true }).waitFor();
+    assert.equal(await db.response.count(), 0);
+    assert.equal(
+      (await db.trainingSession.findUniqueOrThrow({ where: { id: session.id } })).status,
+      'ACTIVE',
+    );
+    await collectionRow.locator('button.training-cell').click();
+    await page.getByRole('button', { name: 'Rouvrir les réponses', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Confirmer la réouverture', exact: true })
+      .click();
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: 'Clôturer les réponses', exact: true }).waitFor();
+    await page.screenshot({ path: 'test-results/manual-collection-reopened.png', fullPage: true });
+    const reopenedCollection = await db.trainingSession.findUniqueOrThrow({
+      where: { id: session.id },
+    });
+    assert.equal(reopenedCollection.responsesClosedAt, null);
+    assert.equal(reopenedCollection.responseDeadline?.toISOString().slice(0, 10), '2099-12-31');
+    await form.goto(personalLink);
+    await form
+      .getByRole('heading', { name: 'Et si on faisait encore mieux ?', exact: true })
+      .waitFor();
+    console.log(
+      'Clôture manuelle depuis la liste, confirmation, refus tardif et réouverture depuis la fiche : OK.',
+    );
     // A form opened before closure must also be refused on submission.
     for (let i = 0; i < 11; i++)
       await form
@@ -1366,6 +1473,16 @@ async function main() {
         ).status(),
         201,
       );
+      for (const action of ['CLOSE', 'REOPEN'])
+        assert.equal(
+          (
+            await managerPage.request.post(`${url}/api/sessions/MANAGER-TEST/collection`, {
+              headers: { Origin: url },
+              data: { action },
+            })
+          ).status(),
+          200,
+        );
       assert.equal(
         (
           await managerPage.request.patch(`${url}/api/sessions/MANAGER-TEST`, {
